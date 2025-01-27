@@ -1,0 +1,176 @@
+'use client'
+
+import { useEffect, useRef } from 'react'
+
+export default function IngredientsAnalyzer() {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Set canvas size
+    canvas.width = 300;
+    canvas.height = 300;
+
+    // Define ingredients data
+    const ingredients = [
+      { name: 'Natural', percentage: 35, color: '#4CC9F0' },
+      { name: 'Preservatives', percentage: 20, color: '#4361EE' },
+      { name: 'Colors', percentage: 15, color: '#3A0CA3' },
+      { name: 'Additives', percentage: 12, color: '#7209B7' },
+      { name: 'Flavors', percentage: 18, color: '#F72585' },
+    ];
+
+    // Calculate total percentage
+    const totalPercentage = ingredients.reduce((sum, ing) => sum + ing.percentage, 0);
+
+    // Draw stacked circular chart
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const radius = 120;
+    let startAngle = -Math.PI / 2;
+
+    ingredients.forEach((ing, index) => {
+      const sliceAngle = (2 * Math.PI * ing.percentage) / totalPercentage;
+      const endAngle = startAngle + sliceAngle;
+
+      // Create gradient
+      const gradientAngle = (startAngle + endAngle) / 2;
+      const gradient = ctx.createRadialGradient(
+        centerX, centerY, radius * 0.6,
+        centerX, centerY, radius
+      );
+      const lighterColor = lightenColor(ing.color, 30);
+      gradient.addColorStop(0, lighterColor);
+      gradient.addColorStop(1, ing.color);
+
+      ctx.beginPath();
+      ctx.moveTo(centerX, centerY);
+      ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+      ctx.closePath();
+
+      // Apply blur for smoother edges
+      //ctx.shadowColor = ing.color;
+      //ctx.shadowBlur = 5;
+
+      ctx.fillStyle = gradient;
+      ctx.fill();
+
+      // Reset shadow
+      //ctx.shadowColor = 'transparent';
+      //ctx.shadowBlur = 0;
+
+      // Add percentage text
+      const textAngle = startAngle + sliceAngle / 2;
+      const textRadius = radius * 0.75;
+      const textX = centerX + Math.cos(textAngle) * textRadius;
+      const textY = centerY + Math.sin(textAngle) * textRadius;
+
+      ctx.fillStyle = 'white';
+      ctx.font = 'bold 14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+      ctx.shadowBlur = 2;
+      ctx.fillText(`${ing.percentage}%`, textX, textY);
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
+
+      startAngle = endAngle;
+    });
+
+    // Draw center circle
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius * 0.6, 0, 2 * Math.PI);
+    ctx.fillStyle = '#1A1A1A';
+    ctx.fill();
+
+    // Draw health score
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 48px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('78', centerX, centerY - 10);
+
+    ctx.font = '16px sans-serif';
+    ctx.fillText('Health Score', centerX, centerY + 20);
+
+    function lightenColor(color: string, amount: number): string {
+      const num = parseInt(color.replace("#", ""), 16);
+      const r = Math.min(255, ((num >> 16) & 0xff) + amount);
+      const g = Math.min(255, ((num >> 8) & 0xff) + amount);
+      const b = Math.min(255, (num & 0xff) + amount);
+      return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+    }
+  }, [])
+
+  return (
+    <div className="min-h-screen bg-[#1A1A1A] text-white p-6">
+      <header className="flex items-center justify-between mb-8">
+        <button className="p-2">
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <h1 className="text-xl font-medium">Ingredients Analyzer</h1>
+        <button className="p-2">
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+          </svg>
+        </button>
+      </header>
+
+      <div className="flex flex-col items-center justify-center mb-8">
+        <div className="relative">
+          <canvas ref={canvasRef} className="w-[300px] h-[300px]" />
+        </div>
+      </div>
+
+      <div className="space-y-4 max-w-md mx-auto">
+        <div className="bg-[#2A2A2A] p-4 rounded-lg flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <div className="w-3 h-3 rounded-full bg-[#4CC9F0]" />
+            <span>Natural</span>
+          </div>
+          <span>35%</span>
+        </div>
+        
+        <div className="bg-[#2A2A2A] p-4 rounded-lg flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <div className="w-3 h-3 rounded-full bg-[#4361EE]" />
+            <span>Preservatives</span>
+          </div>
+          <span>20%</span>
+        </div>
+        
+        <div className="bg-[#2A2A2A] p-4 rounded-lg flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <div className="w-3 h-3 rounded-full bg-[#3A0CA3]" />
+            <span>Colors</span>
+          </div>
+          <span>15%</span>
+        </div>
+        
+        <div className="bg-[#2A2A2A] p-4 rounded-lg flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <div className="w-3 h-3 rounded-full bg-[#7209B7]" />
+            <span>Additives</span>
+          </div>
+          <span>12%</span>
+        </div>
+        <div className="bg-[#2A2A2A] p-4 rounded-lg flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <div className="w-3 h-3 rounded-full bg-[#F72585]" />
+            <span>Flavors</span>
+          </div>
+          <span>18%</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+

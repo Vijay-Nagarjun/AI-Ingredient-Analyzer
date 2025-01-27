@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - IngredientAI</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2ecc71;
+            --dark-bg: #0a192f;
+            --card-bg: rgba(255, 255, 255, 0.05);
+        }
+        
+        body {
+            background: var(--dark-bg);
+            color: #fff;
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+        }
+
+        .navbar {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+        }
+
+        .navbar-brand {
+            font-size: 1.5rem;
+            background: linear-gradient(45deg, #38bdf8, #2ecc71);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: bold;
+        }
+
+        .gradient-text {
+            background: linear-gradient(45deg, #38bdf8, #2ecc71);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: bold;
+        }
+
+        .user-card {
+            background: rgba(16, 29, 46, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 2rem;
+            margin: 1rem 0;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .analysis-card {
+            background: rgba(16, 29, 46, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 2rem;
+            margin: 1rem 0;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 300px;
+            margin: 0 auto;
+        }
+
+        .category-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin: 1rem 0;
+            justify-content: center;
+        }
+
+        .category-pill {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            font-size: 0.9rem;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .category-pill:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .score-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.5rem 1.2rem;
+            border-radius: 20px;
+            background: rgba(22, 41, 63, 0.95);
+            color: #fff;
+            margin: 0.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .ingredients-list {
+            margin-top: 1.5rem;
+        }
+
+        .ingredients-list h6 {
+            color: #fff;
+            margin-bottom: 1rem;
+        }
+
+        .ingredients-list ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .ingredients-list li {
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .ingredients-list i {
+            margin-right: 0.5rem;
+        }
+
+        .btn-outline-light {
+            color: rgba(255, 255, 255, 0.9);
+            border-color: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(5px);
+            border-radius: 20px;
+            padding: 0.5rem 1.2rem;
+        }
+
+        .btn-outline-light:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .analysis-count {
+            background: #0066ff;
+            color: #fff;
+            padding: 0.3rem 0.8rem;
+            border-radius: 15px;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">IngredientAI Admin</a>
+            <div class="d-flex align-items-center">
+                <span class="text-light me-3">Welcome, Admin</span>
+                <a href="{{ url_for('logout') }}" class="btn btn-outline-light">
+                    <i class="bi bi-box-arrow-right"></i> Logout
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-5">
+        <h1 class="gradient-text mb-4">User Management</h1>
+        
+        <div class="row">
+            <div class="col-md-12">
+                {% for user in users %}
+                    <div class="user-card">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div>
+                                <h3 class="text-light mb-1">{{ user.username }}</h3>
+                                <p class="text-muted mb-0">{{ user.email }}</p>
+                            </div>
+                            <div class="d-flex align-items-center gap-3">
+                                <span class="analysis-count">{{ user.analysis_count }} Analyses</span>
+                                <button class="btn btn-outline-light" type="button" data-bs-toggle="collapse" 
+                                        data-bs-target="#analyses-{{ user._id }}">
+                                    View Analyses
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="collapse" id="analyses-{{ user._id }}">
+                            {% if user.analyses %}
+                                {% for analysis in user.analyses %}
+                                    <div class="analysis-card">
+                                        <h4 class="text-light mb-4">{{ analysis.product_name if analysis.product_name else "Product Analysis" }}</h4>
+                                        
+                                        <div class="row">
+                                            <div class="col-lg-6">
+                                                <div class="chart-container mb-3">
+                                                    <canvas id="chart_{{ analysis._id }}"></canvas>
+                                                </div>
+                                                
+                                                <div class="category-pills">
+                                                    <button class="category-pill">Natural</button>
+                                                    <button class="category-pill">Additives</button>
+                                                    <button class="category-pill">Preservatives</button>
+                                                    <button class="category-pill">Colors</button>
+                                                    <button class="category-pill">Others</button>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="col-lg-6">
+                                                <div class="score-badges mb-4">
+                                                    <div class="score-badge">
+                                                        Health Score: {{ "%.1f"|format(analysis.analysis_result.health_score) }}/5
+                                                    </div>
+                                                    <div class="score-badge">
+                                                        Processing: {{ "%.1f"|format(analysis.analysis_result.processing_level) }}/5
+                                                    </div>
+                                                </div>
+
+                                                <div class="ingredients-text mb-4">
+                                                    <h6 class="text-light">Ingredients:</h6>
+                                                    <p class="text-muted">{{ analysis.ingredients_text }}</p>
+                                                </div>
+
+                                                <div class="row">
+                                                    <div class="col-md-6">
+                                                        <div class="ingredients-list">
+                                                            <h6>Natural Ingredients</h6>
+                                                            <ul>
+                                                                {% for ingredient in analysis.analysis_result.natural %}
+                                                                    <li>
+                                                                        <i class="bi bi-check-circle-fill text-success"></i>
+                                                                        {{ ingredient }}
+                                                                    </li>
+                                                                {% endfor %}
+                                                            </ul>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <div class="ingredients-list">
+                                                            <h6>Additives & Preservatives</h6>
+                                                            <ul>
+                                                                {% for ingredient in analysis.analysis_result.additives + analysis.analysis_result.preservatives %}
+                                                                    <li>
+                                                                        <i class="bi bi-exclamation-circle-fill text-warning"></i>
+                                                                        {{ ingredient }}
+                                                                    </li>
+                                                                {% endfor %}
+                                                            </ul>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="text-center text-muted mt-4">
+                                    <i class="bi bi-inbox display-4 mb-3 d-block"></i>
+                                    <p>No analyses found for this user</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        {% for user in users %}
+            {% for analysis in user.analyses %}
+                const ctx_{{ analysis._id }} = document.getElementById('chart_{{ analysis._id }}')?.getContext('2d');
+                if (ctx_{{ analysis._id }}) {
+                    new Chart(ctx_{{ analysis._id }}, {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['Natural', 'Additives', 'Preservatives', 'Colors', 'Others'],
+                            datasets: [{
+                                data: [
+                                    {{ analysis.analysis_result.natural|length }},
+                                    {{ analysis.analysis_result.additives|length }},
+                                    {{ analysis.analysis_result.preservatives|length }},
+                                    {{ analysis.analysis_result.colors|length }},
+                                    {{ analysis.analysis_result.others|length }}
+                                ],
+                                backgroundColor: [
+                                    '#00E676',  // Natural
+                                    '#FF4081',  // Additives
+                                    '#FFC107',  // Preservatives
+                                    '#2196F3',  // Colors
+                                    '#9C27B0'   // Others
+                                ],
+                                borderWidth: 0,
+                                hoverBorderWidth: 2,
+                                hoverBorderColor: 'rgba(255,255,255,0.2)'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            cutout: '75%',
+                            radius: '90%',
+                            plugins: {
+                                legend: {
+                                    display: false
+                                },
+                                tooltip: {
+                                    backgroundColor: 'rgba(0,0,0,0.8)',
+                                    titleColor: '#fff',
+                                    bodyColor: '#fff',
+                                    padding: 12,
+                                    displayColors: true,
+                                    callbacks: {
+                                        label: function(context) {
+                                            return `${context.label}: ${context.raw} ingredients`;
+                                        }
+                                    }
+                                }
+                            },
+                            animation: {
+                                animateRotate: true,
+                                animateScale: true
+                            }
+                        }
+                    });
+                }
+            {% endfor %}
+        {% endfor %}
+    });
+    </script>
+</body>
+</html>

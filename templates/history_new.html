@@ -1,0 +1,415 @@
+{% extends "base.html" %}
+
+{% block title %}IngredientAI - Analysis History{% endblock %}
+
+{% block extra_head %}
+<style>
+/* Force chart legend text to be white */
+.chartjs-legend li span,
+.chartjs-legend-item span {
+    color: #ffffff !important;
+}
+
+.chartjs-legend {
+    color: #ffffff !important;
+}
+
+.history-container {
+    padding: 2rem;
+    background: var(--dark-bg);
+    min-height: calc(100vh - 80px);
+    margin-top: 1rem;
+}
+
+.analysis-card {
+    background: rgba(16, 29, 46, 0.95);
+    border-radius: 15px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.analysis-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+}
+
+.chart-container {
+    position: relative;
+    height: 300px;
+    margin: 1rem 0;
+}
+
+/* Target Chart.js generated elements */
+.chartjs-render-monitor + div,
+.chartjs-render-monitor ~ div {
+    color: #ffffff !important;
+}
+
+/* Target specific Chart.js legend items */
+.chart-legend li span,
+.chart-legend-item span {
+    color: #ffffff !important;
+}
+
+/* Override any inline styles */
+[class*="chart"] span,
+[class*="chart"] div {
+    color: #ffffff !important;
+}
+
+/* Additional specific overrides */
+.chart-container canvas {
+    margin-bottom: 1rem;
+}
+
+/* Force all text elements after canvas to be white */
+.chart-container canvas ~ * {
+    color: #ffffff !important;
+}
+
+/* Target Chart.js tooltip */
+#chartjs-tooltip {
+    color: #ffffff !important;
+}
+
+.health-score {
+    text-align: center;
+    margin: 1.5rem 0;
+    padding: 1.25rem;
+    background: rgba(16, 29, 46, 0.95);
+    border-radius: 10px;
+    border: 1px solid rgba(46, 204, 113, 0.3);
+}
+
+.health-score h4 {
+    color: #27ae60;
+    margin: 0;
+    font-size: 2.5rem;
+    font-weight: bold;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.health-score p {
+    color: rgba(255, 255, 255, 0.9);
+    margin: 0.5rem 0 0 0;
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+.ingredients-section {
+    margin-top: 1.5rem;
+    padding: 1.5rem;
+    background: rgba(16, 29, 46, 0.95);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.ingredients-section h5 {
+    color: rgba(255, 255, 255, 0.95);
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.ingredients-section h5 i {
+    color: #3498db;
+}
+
+.ingredients-text {
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+
+.analysis-date {
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.analysis-date i {
+    color: #3498db;
+}
+
+.btn-compare {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    color: white;
+    border: none;
+    padding: 0.75rem 2rem;
+    border-radius: 25px;
+    transition: all 0.3s ease;
+    margin-top: 1.5rem;
+    text-decoration: none;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-compare:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(52, 152, 219, 0.4);
+    color: white;
+    text-decoration: none;
+    background: linear-gradient(135deg, #2980b9, #2472a4);
+}
+
+.product-name {
+    font-size: 1.75rem;
+    color: rgba(255, 255, 255, 0.95);
+    margin-bottom: 1rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.product-name i {
+    color: #3498db;
+    font-size: 1.5rem;
+}
+
+.no-analyses {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: rgba(16, 29, 46, 0.95);
+    border-radius: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.no-analyses i {
+    font-size: 4rem;
+    color: rgba(255, 255, 255, 0.85);
+    margin-bottom: 1.5rem;
+}
+
+.no-analyses h3 {
+    color: rgba(255, 255, 255, 0.95);
+    margin-bottom: 1rem;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.no-analyses p {
+    color: rgba(255, 255, 255, 0.85);
+    margin-bottom: 2rem;
+    font-size: 1.1rem;
+}
+
+.load-more {
+    text-align: center;
+    margin-top: 3rem;
+}
+
+.btn-load-more {
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 0.75rem 2.5rem;
+    border-radius: 25px;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.btn-load-more:hover {
+    background: rgba(255, 255, 255, 0.15);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    color: white;
+    text-decoration: none;
+}
+
+.legend {
+    margin-top: 1rem;
+    display: grid;
+    gap: 0.5rem;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+}
+
+.color-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 0.5rem;
+}
+
+.legend-text {
+    color: #fff;
+    flex-grow: 1;
+}
+
+.legend-percentage {
+    color: #aaa;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="history-container">
+    <div class="container">
+        <h2 class="text-center mb-4 gradient-text">Analysis History</h2>
+        
+        {% if analyses %}
+        <div class="row">
+            {% for analysis in analyses %}
+            <div class="col-lg-6">
+                <div class="analysis-card">
+                    <h3 class="product-name">
+                        <i class="bi bi-box-seam"></i>
+                        {{ analysis.product_name }}
+                    </h3>
+                    <div class="analysis-date">
+                        <i class="bi bi-calendar3"></i> {{ analysis.created_at }}
+                    </div>
+                    
+                    <div class="chart-container">
+                        <canvas id="chart_{{ analysis._id }}"></canvas>
+                    </div>
+                    
+                    <div class="health-score">
+                        <h4>{{ "%.1f"|format(analysis.health_score) }}%</h4>
+                        <p>Health Score</p>
+                    </div>
+                    
+                    <div class="ingredients-section">
+                        <h5><i class="bi bi-list-ul me-2"></i>Ingredients</h5>
+                        <div class="ingredients-text">
+                            {{ analysis.ingredients_text[:200] }}{% if analysis.ingredients_text|length > 200 %}...{% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="text-center">
+                        <a href="{{ url_for('compare_page', analysis=analysis._id) }}" class="btn btn-compare">
+                            <i class="bi bi-bar-chart-fill"></i>Compare with Other Products
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        {% if has_next %}
+        <div class="load-more">
+            <a href="{{ url_for('history', page=page+1) }}" class="btn btn-load-more">
+                Load More <i class="bi bi-chevron-down"></i>
+            </a>
+        </div>
+        {% endif %}
+        
+        {% else %}
+        <div class="no-analyses">
+            <i class="bi bi-inbox"></i>
+            <h3>No Analyses Yet</h3>
+            <p>Start by analyzing some products to see your history here.</p>
+            <a href="{{ url_for('analyze') }}" class="btn btn-primary">
+                <i class="bi bi-camera me-2"></i>Analyze Product
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    Chart.defaults.color = '#ffffff';  // Set default text color to white
+    Chart.defaults.font.family = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
+    
+    const chartColors = {
+        Natural: '#27ae60',
+        Additives: '#c0392b',
+        Preservatives: '#f39c12',
+        'Artificial Colors': '#8e44ad',
+        'Highly Processed': '#2980b9'
+    };
+
+    {% for analysis in analyses %}
+    var chartData = {{ analysis.ingredient_percentages|tojson }};
+    var ctx = document.getElementById('chart_{{ analysis._id }}').getContext('2d');
+    
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(chartData),
+            datasets: [{
+                data: Object.values(chartData),
+                backgroundColor: Object.keys(chartData).map(key => chartColors[key]),
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        color: '#ffffff',
+                        font: {
+                            size: 12,
+                            family: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
+                        },
+                        padding: 15,
+                        usePointStyle: true,
+                        generateLabels: function(chart) {
+                            const data = chart.data;
+                            if (data.labels.length && data.datasets.length) {
+                                return data.labels.map((label, i) => ({
+                                    text: `${label}: ${data.datasets[0].data[i].toFixed(1)}%`,
+                                    fillStyle: chartColors[label],
+                                    strokeStyle: chartColors[label],
+                                    fontColor: '#ffffff',
+                                    lineWidth: 0,
+                                    hidden: false
+                                }));
+                            }
+                            return [];
+                        }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    titleColor: '#ffffff',
+                    bodyColor: '#ffffff',
+                    padding: 12,
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.label}: ${context.raw.toFixed(1)}%`;
+                        }
+                    }
+                }
+            },
+            cutout: '70%',
+            layout: {
+                padding: {
+                    top: 20,
+                    bottom: 20
+                }
+            }
+        }
+    });
+    {% endfor %}
+});
+</script>
+{% endblock %}

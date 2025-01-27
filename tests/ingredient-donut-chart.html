@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    /* Previous styles remain the same */
+    body {
+      background: #1a1a1a;
+      margin: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 32px;
+      background: #242424;
+      border-radius: 24px;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+    }
+
+    .title {
+      color: #ffffff;
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 32px;
+      text-align: center;
+    }
+
+    .chart-container {
+      position: relative;
+      width: 320px;
+      height: 320px;
+      margin: 0 auto;
+      cursor: pointer;
+    }
+
+    .percentage-circle {
+      width: 100%;
+      height: 100%;
+      transform: rotate(-90deg);
+    }
+
+    .center-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+    }
+
+    .total-value {
+      color: #ffffff;
+      font-size: 36px;
+      font-weight: 700;
+      margin: 0;
+    }
+
+    .total-label {
+      color: #888;
+      font-size: 14px;
+      margin-top: 4px;
+    }
+
+    .legend {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-top: 40px;
+      padding: 0 16px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      padding: 12px 16px;
+      background: #2a2a2a;
+      border-radius: 12px;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+
+    .legend-item:hover {
+      background: #333;
+      transform: translateY(-2px);
+    }
+
+    .color-indicator {
+      width: 12px;
+      height: 12px;
+      border-radius: 6px;
+      margin-right: 12px;
+    }
+
+    .legend-text {
+      flex-grow: 1;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .legend-percentage {
+      color: #888;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .details-panel {
+      margin-top: 32px;
+      padding: 24px;
+      background: #2a2a2a;
+      border-radius: 16px;
+      display: none;
+      animation: slideDown 0.3s ease;
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .details-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .details-title {
+      color: #fff;
+      font-size: 18px;
+      font-weight: 600;
+      margin: 0;
+    }
+
+    .details-color {
+      width: 16px;
+      height: 16px;
+      border-radius: 8px;
+      margin-right: 12px;
+    }
+
+    .ingredients-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .ingredient-card {
+      background: #333;
+      padding: 16px;
+      border-radius: 12px;
+      transition: all 0.3s ease;
+    }
+
+    .ingredient-card:hover {
+      background: #3a3a3a;
+      transform: translateY(-2px);
+    }
+
+    .ingredient-name {
+      color: #fff;
+      font-size: 14px;
+      font-weight: 500;
+      margin: 0 0 8px 0;
+    }
+
+    .ingredient-details {
+      color: #888;
+      font-size: 12px;
+      margin: 0;
+      line-height: 1.4;
+    }
+
+    /* Previous input styles remain the same */
+    .inputs-container {
+      margin-top: 32px;
+      padding: 24px;
+      background: #2a2a2a;
+      border-radius: 16px;
+    }
+
+    .input-group {
+      display: flex;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .input-label {
+      color: #fff;
+      font-size: 14px;
+      width: 120px;
+    }
+
+    input[type="number"] {
+      background: #333;
+      border: 2px solid #444;
+      border-radius: 8px;
+      color: #fff;
+      padding: 8px 12px;
+      width: 80px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 class="title">Ingredient Composition</h1>
+    
+    <div class="chart-container">
+      <canvas id="donutChart" class="percentage-circle"></canvas>
+      <div class="center-text">
+        <p class="total-value">100%</p>
+        <p class="total-label">Total</p>
+      </div>
+    </div>
+    
+    <div class="legend"></div>
+    
+    <div class="details-panel">
+      <div class="details-header">
+        <div class="details-color"></div>
+        <h2 class="details-title"></h2>
+      </div>
+      <div class="ingredients-grid"></div>
+    </div>
+    
+    <div class="inputs-container">
+      <!-- Input fields will be added here by JavaScript -->
+    </div>
+  </div>
+
+  <script>
+    const categories = [
+      { 
+        name: 'Natural',
+        color: '#00ff9d',
+        ingredients: [
+          { name: 'Aloe Vera Extract', details: 'Moisturizing, soothing properties' },
+          { name: 'Coconut Oil', details: 'Natural moisturizer, anti-inflammatory' },
+          { name: 'Green Tea Extract', details: 'Antioxidant, anti-aging properties' },
+          { name: 'Shea Butter', details: 'Rich in vitamins A and E' },
+          { name: 'Jojoba Oil', details: 'Similar to skin\'s natural oils' }
+        ]
+      },
+      { 
+        name: 'Additives',
+        color: '#00b8ff',
+        ingredients: [
+          { name: 'Glycerin', details: 'Humectant, moisture retention' },
+          { name: 'Cetyl Alcohol', details: 'Emulsion stabilizer' },
+          { name: 'Dimethicone', details: 'Silicone-based conditioning' },
+          { name: 'Propylene Glycol', details: 'Moisture carrier' }
+        ]
+      },
+      { 
+        name: 'Preservatives',
+        color: '#fb5607',
+        ingredients: [
+          { name: 'Phenoxyethanol', details: 'Broad spectrum preservative' },
+          { name: 'Potassium Sorbate', details: 'Natural preservative' },
+          { name: 'Sodium Benzoate', details: 'Anti-microbial agent' }
+        ]
+      },
+      { 
+        name: 'Colours',
+        color: '#ff006e',
+        ingredients: [
+          { name: 'Iron Oxides', details: 'Natural mineral pigments' },
+          { name: 'Mica', details: 'Natural shimmer' },
+          { name: 'Titanium Dioxide', details: 'White pigment, UV protection' }
+        ]
+      },
+      { 
+        name: 'Others',
+        color: '#8338ec',
+        ingredients: [
+          { name: 'Fragrance', details: 'Proprietary scent blend' },
+          { name: 'Citric Acid', details: 'pH adjuster' },
+          { name: 'Xanthan Gum', details: 'Natural thickener' }
+        ]
+      }
+    ];
+
+    let percentages = {
+      Natural: 45,
+      Additives: 20,
+      Preservatives: 15,
+      Colours: 10,
+      Others: 10
+    };
+
+    function showDetails(category) {
+      const detailsPanel = document.querySelector('.details-panel');
+      const detailsColor = document.querySelector('.details-color');
+      const detailsTitle = document.querySelector('.details-title');
+      const ingredientsGrid = document.querySelector('.ingredients-grid');
+      
+      // Update panel header
+      detailsColor.style.backgroundColor = category.color;
+      detailsTitle.textContent = `${category.name} Ingredients`;
+      
+      // Clear and populate ingredients
+      ingredientsGrid.innerHTML = '';
+      category.ingredients.forEach(ingredient => {
+        const card = document.createElement('div');
+        card.className = 'ingredient-card';
+        card.innerHTML = `
+          <h3 class="ingredient-name">${ingredient.name}</h3>
+          <p class="ingredient-details">${ingredient.details}</p>
+        `;
+        ingredientsGrid.appendChild(card);
+      });
+      
+      // Show panel with animation
+      detailsPanel.style.display = 'block';
+    }
+
+    function createInputs() {
+      const container = document.querySelector('.inputs-container');
+      container.innerHTML = '';
+      
+      categories.forEach(category => {
+        const group = document.createElement('div');
+        group.className = 'input-group';
+        group.innerHTML = `
+          <label class="input-label">${category.name}</label>
+          <input type="number" min="0" max="100" value="${percentages[category.name]}"
+            onchange="updatePercentage('${category.name}', this.value)">
+        `;
+        container.appendChild(group);
+      });
+    }
+
+    function updatePercentage(category, value) {
+      percentages[category] = Number(value);
+      updateChart();
+    }
+
+    function createLegend() {
+      const legend = document.querySelector('.legend');
+      legend.innerHTML = '';
+      
+      categories.forEach(category => {
+        const item = document.createElement('div');
+        item.className = 'legend-item';
+        item.innerHTML = `
+          <span class="color-indicator" style="background-color: ${category.color}"></span>
+          <span class="legend-text">${category.name}</span>
+          <span class="legend-percentage">${percentages[category.name]}%</span>
+        `;
+        item.onclick = () => showDetails(category);
+        legend.appendChild(item);
+      });
+    }
+
+    function drawDonutChart() {
+      const canvas = document.getElementById('donutChart');
+      const ctx = canvas.getContext('2d');
+      
+      // Set canvas size with device pixel ratio
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+      
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+      const outerRadius = Math.min(centerX, centerY) * 0.85;
+      const innerRadius = outerRadius * 0.6;
+      
+      let startAngle = -Math.PI / 2;
+      const total = Object.values(percentages).reduce((a, b) => a + b, 0);
+      
+      document.querySelector('.total-value').textContent = `${total}%`;
+
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
+      ctx.shadowBlur = 8;
+      ctx.shadowOffsetX = 2;
+      ctx.shadowOffsetY = 4;
+
+      // Store segment information for click detection
+      const segments = [];
+
+      categories.forEach(category => {
+        const percentage = percentages[category.name];
+        const sliceAngle = (percentage / 100) * Math.PI * 2;
+
+        // Store segment info
+        segments.push({
+          startAngle,
+          endAngle: startAngle + sliceAngle,
+          category
+        });
+
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, outerRadius, startAngle, startAngle + sliceAngle);
+        ctx.arc(centerX, centerY, innerRadius, startAngle + sliceAngle, startAngle, true);
+        ctx.closePath();
+
+        const gradient = ctx.createRadialGradient(
+          centerX, centerY, innerRadius,
+          centerX, centerY, outerRadius
+        );
+        const color = category.color;
+        gradient.addColorStop(0, adjustBrightness(color, 1.2));
+        gradient.addColorStop(1, color);
+
+        ctx.fillStyle = gradient;
+        ctx.fill();
+
+        startAngle += sliceAngle;
+      });
+
+      // Add click handler to canvas
+      canvas.onclick = function(e) {
+        const rect = canvas.getBoundingClientRect();
+        const x = (e.clientX - rect.left) * dpr;
+        const y = (e.clientY - rect.top) * dpr;
+        
+        // Calculate angle of click
+        const dx = x - centerX * dpr;
+        const dy = y - centerY * dpr;
+        let angle = Math.atan2(dy, dx) + Math.PI / 2;
+        if (angle < 0) angle += Math.PI * 2;
+
+        // Check if click is within donut
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance > innerRadius * dpr && distance < outerRadius * dpr) {
+          // Find which segment was clicked
+          const segment = segments.find(seg => 
+            angle >= seg.startAngle && angle <= seg.endAngle
+          );
+          if (segment) {
+            showDetails(segment.category);
+          }
+        }
+      };
+    }
+
+    function adjustBrightness(color, factor) {
+      const hex = color.replace('#', '');
+      const r = Math.min(255, Math.round(parseInt(hex.substr(0, 2), 16) * factor));
+      const g = Math.min(255, Math.round(parseInt(hex.substr(2, 2), 16) * factor));
+      const b = Math.min(255, Math.round(parseInt(hex.substr(4, 2), 16) * factor));
+      return `rgb(${r}, ${g}, ${b})`;
+    }
+
+    function updateChart() {
+      createLegend();
+      drawDonutChart();
+    }
+
+    // Initialize
+    createInputs();
+    updateChart();
+    window.addEventListener('resize', updateChart);
+  </script>
+</body>
+</html>

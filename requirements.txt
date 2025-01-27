@@ -1,6 +1,15 @@
 openai>=1.0.0
-python-dotenv==1.0.0
+python-dotenv==0.19.0
 pymongo[srv]==4.6.1
 bcrypt==4.1.2
 certifi>=2023.7.22
-flask==3.0.0
+Flask==2.3.3
+Werkzeug==2.3.7
+requests==2.31.0
+Pillow==10.1.0
+pytesseract==0.3.10
+pyngrok==7.2.2
+python-dateutil==2.8.2
+opencv-python==4.8.0.74
+numpy>=1.24.3
+pytest==7.4.0

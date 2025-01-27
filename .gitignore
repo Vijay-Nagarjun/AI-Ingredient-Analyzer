@@ -23,7 +23,9 @@ wheels/
 
 # Virtual Environment
 venv/
+env/
 ENV/
+Ingrediant/
 
 # Environment Variables
 .env
@@ -33,6 +35,8 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+package-lock.json
+package.json
 
 # IDE
 .idea/

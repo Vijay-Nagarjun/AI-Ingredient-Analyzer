@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analyze Ingredients</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.css">
+    <style>
+        body {
+            background-color: #0a192f;
+            color: white;
+            font-family: 'Inter', sans-serif;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .card {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .btn-primary {
+            background-color: #3498db;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 25px;
+        }
+        .btn-outline {
+            border: 1px solid #3498db;
+            color: #3498db;
+            padding: 0.8rem 1.5rem;
+            border-radius: 25px;
+            background: transparent;
+        }
+        .btn-outline:hover {
+            background-color: rgba(52, 152, 219, 0.1);
+            color: #3498db;
+        }
+        #cameraPreview, #capturedImage {
+            width: 100%;
+            max-width: 640px;
+            margin: 20px auto;
+            display: none;
+            border-radius: 10px;
+        }
+
+        .navbar-toggler {
+            border: 2px solid var(--primary-color);
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .navbar-toggler:focus {
+            box-shadow: 0 0 0 0.25rem rgba(52, 152, 219, 0.25);
+        }
+
+        .navbar-toggler-icon {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba(52, 152, 219, 1)' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") !important;
+            width: 1.5em;
+            height: 1.5em;
+        }
+
+        .navbar-toggler:hover {
+            background: rgba(52, 152, 219, 0.1);
+        }
+
+        .input-method {
+            display: none;
+        }
+        .input-method.active {
+            display: block;
+        }
+        .file-upload-wrapper {
+            border: 2px dashed rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            padding: 2rem;
+            text-align: center;
+            margin: 1rem 0;
+            transition: all 0.3s ease;
+        }
+        .file-upload-wrapper:hover {
+            border-color: #3498db;
+            background: rgba(52, 152, 219, 0.1);
+        }
+        .file-upload-wrapper i {
+            font-size: 2rem;
+            color: #3498db;
+            margin-bottom: 1rem;
+        }
+        #uploadedImage {
+            max-width: 100%;
+            border-radius: 10px;
+            margin: 1rem 0;
+            display: none;
+        }
+        .chart-container {
+            width: 300px;
+            height: 300px;
+            margin: 0 auto;
+            position: relative;
+        }
+        .ingredient-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+        }
+        .ingredient-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 15px;
+        }
+        .health-score {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+        .health-score .score {
+            font-size: 48px;
+            font-weight: bold;
+            color: white;
+        }
+        .health-score .label {
+            font-size: 16px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+        .cropper-container {
+            margin: 20px auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="card">
+            <h2 class="mb-4">Analyze Ingredients</h2>
+            
+            <div class="mb-4">
+                <div class="btn-group w-100" role="group">
+                    <button class="btn btn-outline active" onclick="showTextInput()">
+                        <i class="bi bi-keyboard me-2"></i>Text Input
+                    </button>
+                    <button class="btn btn-outline" onclick="showCamera()">
+                        <i class="bi bi-camera me-2"></i>Capture Image
+                    </button>
+                    <button class="btn btn-outline" onclick="showUpload()">
+                        <i class="bi bi-upload me-2"></i>Upload Image
+                    </button>
+                </div>
+            </div>
+
+            <!-- Text Input Section -->
+            <div id="textInputSection" class="input-method active">
+                <div class="form-group">
+                    <label for="ingredientsText">Enter Ingredients List:</label>
+                    <textarea class="form-control bg-dark text-white" id="ingredientsText" rows="5" placeholder="Enter ingredients..."></textarea>
+                </div>
+                <button class="btn btn-primary mt-3" onclick="analyzeText()">Analyze Text</button>
+            </div>
+
+            <!-- Camera Section -->
+            <div id="cameraSection" class="input-method">
+                <video id="cameraPreview" autoplay playsinline></video>
+                <img id="capturedImage" src="" alt="Captured image">
+                <div id="cameraButtons">
+                    <button id="captureBtn" class="btn btn-primary me-2" onclick="capture()">
+                        <i class="bi bi-camera"></i> Capture
+                    </button>
+                    <button id="cropBtn" class="btn btn-primary me-2" onclick="cropImage()" style="display: none;">
+                        <i class="bi bi-crop"></i> Crop
+                    </button>
+                    <button id="retakeBtn" class="btn btn-outline me-2" onclick="retake()" style="display: none;">
+                        <i class="bi bi-arrow-counterclockwise"></i> Retake
+                    </button>
+                    <button id="analyzeImageBtn" class="btn btn-primary" onclick="analyzeImage()" style="display: none;">
+                        <i class="bi bi-search"></i> Analyze
+                    </button>
+                </div>
+            </div>
+
+            <!-- Upload Section -->
+            <div id="uploadSection" class="input-method">
+                <div class="file-upload-wrapper" onclick="document.getElementById('fileInput').click()">
+                    <i class="bi bi-cloud-upload"></i>
+                    <p class="mb-0">Click or drag image here</p>
+                    <input type="file" id="fileInput" accept="image/*" style="display: none" onchange="handleFileUpload(event)">
+                </div>
+                <img id="uploadedImage" src="" alt="Uploaded image">
+                <div id="uploadButtons" style="display: none">
+                    <button class="btn btn-primary me-2" onclick="analyzeUploadedImage()">Analyze</button>
+                    <button class="btn btn-outline" onclick="resetUpload()">Reset</button>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div id="resultsSection" style="display: none;">
+                <div class="card mt-4">
+                    <h3>Analysis Results</h3>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="chart-container">
+                                <canvas id="ingredientsChart"></canvas>
+                                <div class="health-score">
+                                    <div class="score">0</div>
+                                    <div class="label">Health Score</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div id="ingredientsList"></div>
+                            <div id="extractedText" class="mt-4 text-muted"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.js"></script>
+    <script>
+        let currentMode = 'text';
+        let stream = null;
+        let cropper = null;
+
+        function showTextInput() {
+            currentMode = 'text';
+            document.querySelectorAll('.input-method').forEach(el => el.classList.remove('active'));
+            document.querySelector('#textInputSection').classList.add('active');
+            document.querySelectorAll('.btn-outline').forEach(btn => btn.classList.remove('active'));
+            document.querySelector('button[onclick="showTextInput()"]').classList.add('active');
+            stopCamera();
+        }
+
+        function showCamera() {
+            currentMode = 'camera';
+            document.querySelectorAll('.input-method').forEach(el => el.classList.remove('active'));
+            document.querySelector('#cameraSection').classList.add('active');
+            document.querySelectorAll('.btn-outline').forEach(btn => btn.classList.remove('active'));
+            document.querySelector('button[onclick="showCamera()"]').classList.add('active');
+            startCamera();
+        }
+
+        function showUpload() {
+            currentMode = 'upload';
+            document.querySelectorAll('.input-method').forEach(el => el.classList.remove('active'));
+            document.querySelector('#uploadSection').classList.add('active');
+            document.querySelectorAll('.btn-outline').forEach(btn => btn.classList.remove('active'));
+            document.querySelector('button[onclick="showUpload()"]').classList.add('active');
+            stopCamera();
+        }
+
+        async function startCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: 'environment'
+                    }
+                });
+                const video = document.getElementById('cameraPreview');
+                video.srcObject = stream;
+                video.style.display = 'block';
+                document.getElementById('captureBtn').style.display = 'inline-block';
+                document.getElementById('cropBtn').style.display = 'none';
+                document.getElementById('retakeBtn').style.display = 'none';
+                document.getElementById('analyzeImageBtn').style.display = 'none';
+            } catch (err) {
+                alert('Error accessing camera: ' + err.message);
+            }
+        }
+
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            const video = document.getElementById('cameraPreview');
+            video.srcObject = null;
+            video.style.display = 'none';
+        }
+
+        function capture() {
+            const video = document.getElementById('cameraPreview');
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0);
+            
+            const capturedImage = document.getElementById('capturedImage');
+            capturedImage.src = canvas.toDataURL('image/png');
+            capturedImage.style.display = 'block';
+            
+            stopCamera();
+            video.style.display = 'none';
+            
+            document.getElementById('captureBtn').style.display = 'none';
+            document.getElementById('cropBtn').style.display = 'inline-block';
+            document.getElementById('retakeBtn').style.display = 'inline-block';
+            
+            // Initialize cropper
+            if (cropper) {
+                cropper.destroy();
+            }
+            cropper = new Cropper(capturedImage, {
+                aspectRatio: NaN,
+                viewMode: 1,
+                dragMode: 'move',
+                autoCropArea: 0.8,
+                restore: false,
+                guides: true,
+                center: true,
+                highlight: false,
+                cropBoxMovable: true,
+                cropBoxResizable: true,
+                toggleDragModeOnDblclick: false,
+            });
+        }
+
+        function cropImage() {
+            if (!cropper) return;
+            
+            const croppedCanvas = cropper.getCroppedCanvas();
+            const capturedImage = document.getElementById('capturedImage');
+            capturedImage.src = croppedCanvas.toDataURL('image/png');
+            
+            cropper.destroy();
+            cropper = null;
+            
+            document.getElementById('cropBtn').style.display = 'none';
+            document.getElementById('analyzeImageBtn').style.display = 'inline-block';
+        }
+
+        function retake() {
+            if (cropper) {
+                cropper.destroy();
+                cropper = null;
+            }
+            const capturedImage = document.getElementById('capturedImage');
+            capturedImage.style.display = 'none';
+            
+            document.getElementById('cropBtn').style.display = 'none';
+            document.getElementById('retakeBtn').style.display = 'none';
+            document.getElementById('analyzeImageBtn').style.display = 'none';
+            document.getElementById('resultsSection').style.display = 'none';
+            
+            startCamera();
+        }
+
+        function analyzeImage() {
+            const image = document.getElementById('capturedImage');
+            if (!image.src) {
+                alert('Please capture or upload an image first');
+                return;
+            }
+
+            fetch('/analyze', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    type: 'image',
+                    content: image.src
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayResults(data);
+                } else {
+                    alert('Analysis failed: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred during analysis');
+            });
+        }
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const uploadedImage = document.getElementById('uploadedImage');
+                    uploadedImage.src = e.target.result;
+                    uploadedImage.style.display = 'block';
+                    document.getElementById('uploadButtons').style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function resetUpload() {
+            document.getElementById('fileInput').value = '';
+            document.getElementById('uploadedImage').style.display = 'none';
+            document.getElementById('uploadButtons').style.display = 'none';
+        }
+
+        function analyzeUploadedImage() {
+            const image = document.getElementById('uploadedImage');
+            if (!image.src) {
+                alert('Please upload an image first');
+                return;
+            }
+            
+            fetch('/analyze', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    type: 'image',
+                    content: image.src
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayResults(data);
+                } else {
+                    alert('Analysis failed: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred during analysis');
+            });
+        }
+
+        function analyzeText() {
+            const text = document.getElementById('ingredientsText').value.trim();
+            if (!text) {
+                alert('Please enter ingredients text');
+                return;
+            }
+            
+            fetch('/analyze', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    type: 'text',
+                    content: text
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayResults(data);
+                } else {
+                    alert('Error analyzing text: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error analyzing text');
+            });
+        }
+
+        function drawChart(ingredients, healthScore) {
+            const canvas = document.getElementById('ingredientsChart');
+            const ctx = canvas.getContext('2d');
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const radius = 120;
+
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw pie chart with gradients
+            let startAngle = -Math.PI / 2;
+            ingredients.forEach(ing => {
+                const sliceAngle = (2 * Math.PI * ing.percentage) / 100;
+                
+                // Create gradient
+                const gradient = ctx.createRadialGradient(
+                    centerX, centerY, radius * 0.6,
+                    centerX, centerY, radius
+                );
+                gradient.addColorStop(0, lightenColor(ing.color, 30));
+                gradient.addColorStop(1, ing.color);
+                
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.arc(centerX, centerY, radius, startAngle, startAngle + sliceAngle);
+                ctx.closePath();
+                
+                ctx.fillStyle = gradient;
+                ctx.fill();
+                
+                // Add percentage label
+                const labelAngle = startAngle + sliceAngle / 2;
+                const labelRadius = radius * 0.75;
+                const labelX = centerX + Math.cos(labelAngle) * labelRadius;
+                const labelY = centerY + Math.sin(labelAngle) * labelRadius;
+                
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 14px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(`${ing.percentage}%`, labelX, labelY);
+                
+                startAngle += sliceAngle;
+            });
+
+            // Update health score
+            document.querySelector('.health-score .score').textContent = healthScore;
+        }
+
+        function lightenColor(color, percent) {
+            const num = parseInt(color.replace('#', ''), 16);
+            const amt = Math.round(2.55 * percent);
+            const R = (num >> 16) + amt;
+            const G = (num >> 8 & 0x00FF) + amt;
+            const B = (num & 0x0000FF) + amt;
+            return '#' + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 + (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 + (B < 255 ? B < 1 ? 0 : B : 255)).toString(16).slice(1);
+        }
+
+        function displayResults(data) {
+            document.getElementById('resultsSection').style.display = 'block';
+            
+            // Draw chart
+            drawChart(data.ingredients, data.health_score);
+            
+            // Display ingredients list
+            const list = document.getElementById('ingredientsList');
+            list.innerHTML = data.ingredients.map(ing => `
+                <div class="ingredient-item">
+                    <div class="ingredient-color" style="background-color: ${ing.color}"></div>
+                    <div>
+                        <h5 class="mb-0">${ing.name}</h5>
+                        <small class="text-muted">${ing.percentage}%</small>
+                    </div>
+                </div>
+            `).join('');
+
+            // Display extracted text
+            const extractedText = document.getElementById('extractedText');
+            if (data.extracted_text) {
+                extractedText.innerHTML = `
+                    <h5>Extracted Text:</h5>
+                    <p>${data.extracted_text}</p>
+                `;
+            }
+
+            // Scroll to results
+            document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>

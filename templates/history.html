@@ -1,0 +1,304 @@
+{% extends "dashboard.html" %}
+{% block content %}
+<style>
+    .history-container {
+        padding: 2rem;
+        background: #1a1a1a;
+    }
+
+    .history-card {
+        background: #242424;
+        border-radius: 24px;
+        padding: 2rem;
+        height: 100%;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+        transition: all 0.3s ease;
+        margin-bottom: 2rem;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .history-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+
+    .chart-container {
+        position: relative;
+        width: 320px;
+        height: 320px;
+        margin: 0 auto;
+        cursor: pointer;
+    }
+
+    .percentage-circle {
+        width: 100%;
+        height: 100%;
+        transform: rotate(-90deg);
+    }
+
+    .center-text {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        pointer-events: none;
+    }
+
+    .total-value {
+        color: #ffffff;
+        font-size: 36px;
+        font-weight: 700;
+        margin: 0;
+        line-height: 1;
+    }
+
+    .total-label {
+        color: #888;
+        font-size: 14px;
+        margin-top: 4px;
+        opacity: 0.8;
+    }
+
+    .legend {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 12px;
+        margin-top: 24px;
+        padding: 0 16px;
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        padding: 12px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 12px;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .legend-item:hover {
+        background: rgba(255, 255, 255, 0.1);
+        transform: translateY(-2px);
+    }
+
+    .color-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 6px;
+        margin-right: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .legend-text {
+        flex-grow: 1;
+        color: #fff;
+        font-size: 14px;
+        font-weight: 500;
+    }
+
+    .legend-percentage {
+        color: #888;
+        font-weight: 600;
+        font-size: 14px;
+        opacity: 0.8;
+    }
+
+    .date-badge {
+        background: rgba(255, 255, 255, 0.05);
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .ingredients-list {
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 16px;
+        padding: 1rem;
+        margin-top: 1rem;
+        font-size: 0.9rem;
+        color: rgba(255, 255, 255, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .health-score {
+        font-size: 2rem;
+        font-weight: bold;
+        text-align: center;
+        margin: 1rem 0;
+        background: linear-gradient(135deg, #2ecc71, #27ae60);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    .action-buttons {
+        margin-top: 1.5rem;
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+    }
+
+    .btn-outline-light {
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.05);
+        transition: all 0.3s ease;
+    }
+
+    .btn-outline-light:hover {
+        background: rgba(255, 255, 255, 0.1);
+        transform: translateY(-2px);
+    }
+
+    .gradient-text {
+        background: linear-gradient(135deg, #fff, #888);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+</style>
+
+<nav class="navbar navbar-expand-lg">
+    <div class="container">
+        <a class="navbar-brand gradient-text" href="/dashboard">IngredientAI</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav">
+                <li class="nav-item">
+                    <a class="nav-link" href="/dashboard">
+                        <i class="bi bi-house-door"></i> Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/analyze">
+                        <i class="bi bi-camera"></i> Analyze
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/compare">
+                        <i class="bi bi-bar-chart"></i> Compare
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link active" href="/history">
+                        <i class="bi bi-clock-history"></i> History
+                    </a>
+                </li>
+            </ul>
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="/logout">
+                        <i class="bi bi-box-arrow-right"></i> Logout
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<div class="history-container">
+    <div class="container mt-5">
+        <h1 class="text-center mb-5">Analysis History</h1>
+        
+        <div class="row g-4">
+            {% for analysis in analyses %}
+            <div class="col-md-6 col-lg-4">
+                <div class="card glass-card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ analysis.product_name }}</h5>
+                        <p class="card-text text-muted">Analyzed on {{ analysis.created_at }}</p>
+                        
+                        <div class="chart-container mb-3">
+                            <canvas id="chart_{{ analysis._id }}" width="100%" height="100%"></canvas>
+                        </div>
+                        
+                        <div class="health-score mb-3">
+                            <h6>Health Score</h6>
+                            <div class="progress">
+                                <div class="progress-bar" role="progressbar" 
+                                    style="width: {{ analysis.health_score }}%;"
+                                    aria-valuenow="{{ analysis.health_score }}" 
+                                    aria-valuemin="0" 
+                                    aria-valuemax="100">
+                                    {{ "%.1f"|format(analysis.health_score) }}%
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <p class="card-text"><small>Ingredients:</small><br>
+                            {{ analysis.ingredients_text[:200] }}{% if analysis.ingredients_text|length > 200 %}...{% endif %}
+                        </p>
+                        
+                        <div class="text-center mt-3">
+                            <button class="btn btn-sm btn-outline-primary" 
+                                    onclick="selectForComparison('{{ analysis._id }}', '{{ analysis.product_name }}')">
+                                Compare
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        {% if has_next %}
+        <div class="text-center mt-4">
+            <a href="{{ url_for('history', page=page+1) }}" class="btn btn-outline-primary">Load More</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    {% for analysis in analyses %}
+    var chartData = {{ analysis.ingredient_percentages|tojson }};
+    new Chart(document.getElementById('chart_{{ analysis._id }}').getContext('2d'), {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(chartData),
+            datasets: [{
+                data: Object.values(chartData),
+                backgroundColor: [
+                    '#2ecc71',  // Natural
+                    '#e74c3c',  // Additives
+                    '#f1c40f',  // Preservatives
+                    '#9b59b6',  // Artificial Colors
+                    '#3498db'   // Highly Processed
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        color: '#fff',
+                        padding: 10,
+                        font: {
+                            size: 12
+                        }
+                    }
+                }
+            }
+        }
+    });
+    {% endfor %}
+});
+
+function selectForComparison(analysisId, productName) {
+    // You can implement comparison selection logic here
+    window.location.href = `/compare?analysis=${analysisId}`;
+}
+</script>
+
+{% endblock %}

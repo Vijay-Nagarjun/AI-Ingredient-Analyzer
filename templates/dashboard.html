@@ -1,166 +1,90 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ingredient Analyzer - Dashboard</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <style>
-        .gradient-text {
-            background: linear-gradient(to right, #3498db, #f1c40f);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        .fade-in {
-            animation: fadeIn 1s;
-        }
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-            }
-            to {
-                opacity: 1;
-            }
-        }
-    </style>
-</head>
-<body>
-    <nav>
-        <div class="logo">IngredientAI</div>
-        <div class="nav-links">
-            <a href="#" class="gradient-text" id="userName">Welcome, User</a>
-            <a href="#" id="logoutBtn" class="btn btn-outline-light">Logout</a>
-        </div>
-    </nav>
+{% extends "base.html" %}
 
-    <div class="container mt-5 pt-5">
-        <div class="row g-4 justify-content-center">
-            <!-- Main Action Buttons -->
-            <div class="col-12 text-center mb-4">
-                <h2 class="gradient-text mb-4">Analyze Your Food Products</h2>
-                <div class="d-flex justify-content-center gap-4">
-                    <button class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#analyzeModal">
-                        <i class="bi bi-search me-2"></i>Analyze
-                    </button>
-                    <button class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#compareModal">
-                        <i class="bi bi-arrow-left-right me-2"></i>Compare
-                    </button>
-                    <button class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#historyModal">
-                        <i class="bi bi-clock-history me-2"></i>History
-                    </button>
+{% block title %}IngredientAI - Dashboard{% endblock %}
+
+{% block extra_head %}
+<style>
+.feature-card {
+    background: var(--card-bg);
+    border-radius: 15px;
+    padding: 2rem;
+    text-align: center;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: transform 0.3s ease;
+}
+
+.feature-card:hover {
+    transform: translateY(-10px);
+}
+
+.icon-container {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 1.5rem;
+    background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.icon-container i {
+    font-size: 2rem;
+    color: white;
+}
+
+.feature-card h3 {
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+}
+
+.feature-card p {
+    color: var(--text-secondary);
+    margin-bottom: 1.5rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="text-center mb-5">
+        <h1 class="gradient-text display-4">Analyze Your Food</h1>
+        <p class="text-light">Unlock insights about ingredients, health impact, and nutritional value.</p>
+    </div>
+
+    <div class="row g-4 justify-content-center">
+        <div class="col-md-4">
+            <div class="feature-card">
+                <div class="icon-container">
+                    <i class="bi bi-camera"></i>
                 </div>
+                <h3>Analyze</h3>
+                <p>Upload an image or enter ingredients text to analyze food products instantly.</p>
+                <a href="{{ url_for('analyze') }}" class="btn btn-primary">Start Analysis</a>
             </div>
+        </div>
 
-            <!-- Results Section -->
-            <div class="col-12">
-                <div id="resultsSection" class="d-none fade-in">
-                    <!-- Results will be dynamically inserted here -->
+        <div class="col-md-4">
+            <div class="feature-card">
+                <div class="icon-container">
+                    <i class="bi bi-bar-chart"></i>
                 </div>
+                <h3>Compare</h3>
+                <p>Compare different products side by side to make informed choices.</p>
+                <a href="{{ url_for('compare_page') }}" class="btn btn-primary">Compare Products</a>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="feature-card">
+                <div class="icon-container">
+                    <i class="bi bi-clock-history"></i>
+                </div>
+                <h3>History</h3>
+                <p>View your past analyses and track your food choices over time.</p>
+                <a href="{{ url_for('history') }}" class="btn btn-primary">View History</a>
             </div>
         </div>
     </div>
-
-    <!-- Analyze Modal -->
-    <div class="modal fade" id="analyzeModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title gradient-text">Analyze Ingredients</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-4 text-center">
-                        <button class="btn btn-primary me-3" id="scanBtn">
-                            <i class="bi bi-camera me-2"></i>Scan Ingredients
-                        </button>
-                        <button class="btn btn-outline-light" id="manualBtn">
-                            <i class="bi bi-keyboard me-2"></i>Manual Input
-                        </button>
-                    </div>
-                    <div id="ingredientInput" class="d-none">
-                        <textarea class="form-control" rows="5" placeholder="Enter ingredients, separated by commas..."></textarea>
-                    </div>
-                    <div id="scannerView" class="d-none">
-                        <video id="scanner" class="w-100"></video>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Close</button>
-                    <button type="button" class="btn btn-primary" id="analyzeBtn">Analyze</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Compare Modal -->
-    <div class="modal fade" id="compareModal" tabindex="-1">
-        <div class="modal-dialog modal-xl">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title gradient-text">Compare Products</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="row g-4">
-                        <div class="col-md-6">
-                            <div class="card">
-                                <div class="card-body">
-                                    <h6 class="gradient-text mb-3">Product 1</h6>
-                                    <textarea class="form-control mb-3" rows="4" placeholder="Enter ingredients for product 1..."></textarea>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="card">
-                                <div class="card-body">
-                                    <h6 class="gradient-text mb-3">Product 2</h6>
-                                    <textarea class="form-control mb-3" rows="4" placeholder="Enter ingredients for product 2..."></textarea>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Close</button>
-                    <button type="button" class="btn btn-primary" id="compareBtn">Compare</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- History Modal -->
-    <div class="modal fade" id="historyModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title gradient-text">Analysis History</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="table-responsive">
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Product</th>
-                                    <th>Health Score</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody id="historyTableBody">
-                                <!-- History items will be dynamically inserted here -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
-</body>
-</html>
+</div>
+{% endblock %}
