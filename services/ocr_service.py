@@ -1,134 +1,130 @@
 import os
 import sys
 import pytesseract
-from PIL import Image, ImageEnhance
+from PIL import Image, ImageEnhance, ImageFilter
 import numpy as np
 import cv2
 import logging
+import base64
+from io import BytesIO
+import traceback
 
 logger = logging.getLogger(__name__)
 
 class OCRService:
     def __init__(self):
-        self.tesseract_paths = [
-            r'C:\Program Files\Tesseract-OCR\tesseract.exe',
-            r'C:\Program Files (x86)\Tesseract-OCR\tesseract.exe',
-            os.environ.get('TESSERACT_PATH', '')
-        ]
-        self.initialize_tesseract()
-
-    def initialize_tesseract(self):
-        """Initialize Tesseract with the correct path"""
-        for path in self.tesseract_paths:
-            if os.path.exists(path):
-                pytesseract.pytesseract.tesseract_cmd = path
-                logger.info(f"Tesseract initialized with path: {path}")
-                return True
-        logger.error("Tesseract not found in any of the expected locations")
-        return False
-
-    def convert_to_bw(self, image):
-        """Convert image to black and white with multiple methods"""
-        if len(np.array(image).shape) == 3:
-            gray = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2GRAY)
-        else:
-            gray = np.array(image)
+        # Set Tesseract path directly
+        self.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+        pytesseract.pytesseract.tesseract_cmd = self.tesseract_cmd
         
-        # Resize image if too small
-        min_width = 2000
-        if gray.shape[1] < min_width:
-            scale = min_width / gray.shape[1]
-            width = int(gray.shape[1] * scale)
-            height = int(gray.shape[0] * scale)
-            gray = cv2.resize(gray, (width, height), interpolation=cv2.INTER_CUBIC)
+        if not os.path.exists(self.tesseract_cmd):
+            raise EnvironmentError(f"Tesseract not found at {self.tesseract_cmd}")
         
-        versions = []
-        
-        # Version 1: Standard adaptive threshold
-        blur1 = cv2.GaussianBlur(gray, (3, 3), 0)
-        binary1 = cv2.adaptiveThreshold(
-            blur1, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-            cv2.THRESH_BINARY, 11, 2
-        )
-        versions.append(("standard", binary1))
-        
-        # Version 2: More aggressive threshold
-        blur2 = cv2.GaussianBlur(gray, (5, 5), 0)
-        binary2 = cv2.adaptiveThreshold(
-            blur2, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-            cv2.THRESH_BINARY, 15, 5
-        )
-        versions.append(("aggressive", binary2))
-        
-        return versions
-
-    def enhance_contrast(self, image):
-        """Enhance image contrast"""
-        enhancer = ImageEnhance.Contrast(image)
-        return enhancer.enhance(2.0)
-
-    def remove_noise_and_smooth(self, image):
-        """Remove noise and smooth the image"""
-        kernel = np.ones((1, 1), np.uint8)
-        image = cv2.dilate(image, kernel, iterations=1)
-        kernel = np.ones((1, 1), np.uint8)
-        image = cv2.erode(image, kernel, iterations=1)
-        image = cv2.morphologyEx(image, cv2.MORPH_CLOSE, kernel)
-        image = cv2.medianBlur(image, 3)
-        return image
-
-    def extract_text(self, image_path):
-        """Extract text from image using multiple preprocessing methods"""
+        # Test Tesseract
         try:
-            # Open and enhance the image
-            image = Image.open(image_path)
-            enhanced_image = self.enhance_contrast(image)
+            version = pytesseract.get_tesseract_version()
+            print(f"Tesseract version: {version}")
+        except Exception as e:
+            raise EnvironmentError(f"Error testing Tesseract: {str(e)}")
+
+    def preprocess_image(self, image):
+        """Preprocess image for better OCR results"""
+        # Convert to RGB if needed
+        if image.mode != 'RGB':
+            image = image.convert('RGB')
+        
+        # Convert to numpy array
+        img_array = np.array(image)
+        
+        # Convert to grayscale
+        gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
+        
+        # Apply thresholding to preprocess the image
+        gray = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
+        
+        # Apply dilation to connect text components
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
+        gray = cv2.dilate(gray, kernel, iterations=1)
+        
+        # Apply blur to smooth out the edges
+        gray = cv2.GaussianBlur(gray, (5, 5), 0)
+        
+        return gray
+
+    def extract_text_from_base64(self, base64_data):
+        """Extract text from base64 encoded image data"""
+        try:
+            # Remove header if present
+            if 'base64,' in base64_data:
+                base64_data = base64_data.split('base64,')[1]
             
-            # Convert to different B&W versions
-            versions = self.convert_to_bw(enhanced_image)
+            # Decode base64 data
+            image_data = base64.b64decode(base64_data)
+            image = Image.open(BytesIO(image_data))
+            
+            # Save original image for debugging
+            debug_original = 'debug_original.png'
+            image.save(debug_original)
+            print(f"Saved original image: {debug_original}")
+            
+            # Preprocess image
+            processed_image = self.preprocess_image(image)
+            
+            # Save processed image for debugging
+            debug_processed = 'debug_processed.png'
+            cv2.imwrite(debug_processed, processed_image)
+            print(f"Saved processed image: {debug_processed}")
+            
+            # Extract text using different OCR configurations
+            configs = [
+                '--oem 3 --psm 6',  # Assume uniform block of text
+                '--oem 3 --psm 4',  # Assume single column of text
+                '--oem 3 --psm 3',  # Fully automatic page segmentation
+            ]
             
             best_text = ""
             max_confidence = 0
             
-            # Try OCR on each version
-            for version_name, img_version in versions:
-                # Remove noise and smooth
-                cleaned = self.remove_noise_and_smooth(img_version)
-                
-                # Extract text
+            for config in configs:
                 try:
-                    text = pytesseract.image_to_string(cleaned)
+                    print(f"Trying OCR with config: {config}")
                     
-                    # Calculate confidence
-                    data = pytesseract.image_to_data(cleaned, output_type=pytesseract.Output.DICT)
+                    # Get text and confidence
+                    data = pytesseract.image_to_data(processed_image, config=config, output_type=pytesseract.Output.DICT)
+                    
+                    # Calculate average confidence
                     confidences = [int(conf) for conf in data['conf'] if conf != '-1']
-                    avg_confidence = sum(confidences) / len(confidences) if confidences else 0
-                    
-                    if avg_confidence > max_confidence:
-                        max_confidence = avg_confidence
-                        best_text = text
-                    
-                    logger.info(f"OCR {version_name} version confidence: {avg_confidence}")
-                    
+                    if confidences:
+                        avg_confidence = sum(confidences) / len(confidences)
+                        text = pytesseract.image_to_string(processed_image, config=config)
+                        
+                        print(f"Confidence: {avg_confidence}")
+                        print(f"Extracted text: {text[:100]}...")
+                        
+                        if avg_confidence > max_confidence and text.strip():
+                            max_confidence = avg_confidence
+                            best_text = text
+                
                 except Exception as e:
-                    logger.error(f"Error in OCR processing {version_name} version: {str(e)}")
+                    print(f"Error with config {config}: {str(e)}")
                     continue
             
             if not best_text.strip():
-                return {
-                    'success': False,
-                    'error': 'No text could be extracted from the image'
-                }
+                raise ValueError("No text could be extracted from the image")
             
-            return {
-                'success': True,
-                'text': best_text.strip(),
-                'confidence': max_confidence
-            }
+            print(f"Final extracted text: {best_text[:100]}...")
+            return best_text.strip()
             
         except Exception as e:
-            logger.error(f"Error processing image: {str(e)}")
-            return {
-                'success': False,
-                'error': str(e)
-            }
+            print(f"Error in extract_text_from_base64: {str(e)}")
+            traceback.print_exc()
+            raise
+
+    def extract_text(self, image_path):
+        """Extract text from an image file"""
+        try:
+            return self.extract_text_from_base64(base64.b64encode(open(image_path, 'rb').read()).decode())
+        except Exception as e:
+            print(f"Error in extract_text: {str(e)}")
+            traceback.print_exc()
+            raise

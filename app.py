@@ -1,45 +1,61 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
-from functools import wraps
+from flask import Flask, render_template, request, redirect, url_for, jsonify, session, flash
+from flask_login import LoginManager, login_user, login_required, logout_user, current_user
+from dotenv import load_dotenv
 import os
-import base64
-from io import BytesIO
-from PIL import Image, ImageEnhance
-import pytesseract
-import json
-from models import User, Admin, IngredientAnalysis
+from models import User, Admin, IngredientAnalysis as Analysis
+from services.ocr_service import OCRService
+from services.ingredient_service import IngredientService
+from pymongo import MongoClient
 from bson import ObjectId
-from datetime import datetime, timedelta
-import tempfile
-import random
+import base64
+from datetime import datetime
+import logging
+from functools import wraps
+import pytesseract
+import traceback
 import re
 
+# Load environment variables
+load_dotenv()
+
 app = Flask(__name__)
-app.secret_key = os.urandom(24)  # For session management
+app.secret_key = os.getenv('SECRET_KEY', os.urandom(24))
 
 # MongoDB setup
-try:
-    from pymongo import MongoClient
-    client = MongoClient('mongodb://localhost:27017/')
-    db = client['ingredient_analyzer']
-    print("MongoDB connected successfully")
-except Exception as e:
-    print(f"MongoDB connection error: {str(e)}")
-    db = None
+MONGO_URI = os.getenv('MONGO_URI', 'mongodb://localhost:27017/')
+client = MongoClient(MONGO_URI)
+db = client.ingredient_analyzer
 
-# Initialize database
+# Initialize models with database connection
 user_model = User(db)
 admin_model = Admin(db)
-analysis_model = IngredientAnalysis(db)
+analysis_model = Analysis(db)
 
-# Configure session
-app.config['SESSION_TYPE'] = 'filesystem'
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)
-app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production
-app.config['SESSION_COOKIE_HTTPONLY'] = True
+# Initialize services
+try:
+    print("Initializing OCR service...")
+    ocr_service = OCRService()
+    print("OCR service initialized successfully")
+    
+    print("\nInitializing Ingredient service...")
+    openai_key = os.getenv('OPENAI_API_KEY')
+    if not openai_key:
+        raise ValueError("OPENAI_API_KEY not found in environment variables")
+    
+    ingredient_service = IngredientService()
+    print("Ingredient service initialized successfully")
+    print("Services initialization complete")
+    
+except Exception as e:
+    print(f"Error initializing services: {str(e)}")
+    print("Please check your .env file and make sure it contains:")
+    print("1. OPENAI_API_KEY=your_openai_api_key")
+    print("2. TESSERACT_PATH=path_to_tesseract_executable")
+    raise
 
-# Create templates directory if it doesn't exist
-if not os.path.exists('templates'):
-    os.makedirs('templates')
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 # Login required decorator
 def login_required(f):
@@ -171,68 +187,176 @@ def dashboard():
 def analyze():
     if request.method == 'GET':
         return render_template('analyze.html')
-    
-    try:
-        data = request.get_json()
-        if not data or 'type' not in data or 'content' not in data:
-            return jsonify({'success': False, 'error': 'Invalid request data'})
         
-        extracted_text = ''
-        if data['type'] == 'image':
+    try:
+        print("Starting analysis...")
+        data = request.get_json()
+        
+        if not data:
+            print("No data received")
+            return jsonify({'success': False, 'error': 'No data received'})
+            
+        if 'type' not in data or 'content' not in data:
+            print("Missing required fields")
+            return jsonify({'success': False, 'error': 'Missing type or content field'})
+        
+        content_type = data.get('type')
+        content = data.get('content')
+        product_name = data.get('product_name', '').strip()
+        
+        print(f"Content type: {content_type}")
+        print(f"Product name: {product_name}")
+        
+        if not product_name:
+            product_name = 'Unnamed Product'
+
+        # Extract text based on content type
+        if content_type == 'text':
+            print("Processing text input...")
+            extracted_text = content.strip()
+        elif content_type == 'image':
+            print("Processing image input...")
             try:
                 # Remove header of base64 image
-                image_data = data['content'].split(',')[1]
-                image_bytes = base64.b64decode(image_data)
+                if 'base64,' in content:
+                    print("Found base64 header, removing it...")
+                    content = content.split('base64,')[1]
                 
-                # Save image temporarily
-                with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as temp_file:
-                    temp_file.write(image_bytes)
-                    temp_path = temp_file.name
-
-                try:
-                    # Use the enhanced OCR from test_ocr.py
-                    from tests.test_ocr import extract_text
-                    extracted_text = extract_text(temp_path)
-                    os.unlink(temp_path)
-                except Exception as e:
-                    os.unlink(temp_path)
-                    return jsonify({'success': False, 'error': f'OCR failed: {str(e)}'})
+                print("Calling OCR service...")
+                extracted_text = ocr_service.extract_text_from_base64(content)
+                print(f"OCR Result: {extracted_text[:100]}...")
                 
             except Exception as e:
-                return jsonify({'success': False, 'error': f'Image processing failed: {str(e)}'})
+                print(f"Image processing error: {str(e)}")
+                import traceback
+                traceback.print_exc()
+                return jsonify({
+                    'success': False, 
+                    'error': f'Image processing failed: {str(e)}',
+                    'traceback': traceback.format_exc()
+                })
         else:
-            extracted_text = data['content']
-        
-        if not extracted_text:
-            return jsonify({'success': False, 'error': 'No text could be extracted'})
+            print(f"Invalid content type: {content_type}")
+            return jsonify({'success': False, 'error': 'Invalid content type'})
 
-        # Use the ingredient analyzer
+        if not extracted_text or len(extracted_text.strip()) < 3:
+            print("No text extracted")
+            return jsonify({'success': False, 'error': 'No text could be extracted from the input'})
+
+        # Analyze ingredients
         try:
-            from Vingredient_analyzer import IngredientAnalyzer
-            analyzer = IngredientAnalyzer()
-            analysis_result = analyzer.analyze_ingredients(extracted_text)
+            print("Analyzing ingredients...")
+            print(f"Input text: {extracted_text[:100]}...")
             
-            # Add the extracted text to the result
-            analysis_result['extracted_text'] = extracted_text
-            analysis_result['success'] = True
+            # Process ingredients
+            ingredients = process_ingredients(extracted_text)
+            if not ingredients:
+                print("No ingredients found")
+                return jsonify({'success': False, 'error': 'No ingredients could be identified'})
             
-            # Store in database
-            user_id = session.get('user_id')
-            if user_id:
-                analysis_model.save_analysis(
-                    user_id=user_id,
-                    ingredients_text=extracted_text,
-                    analysis_result=analysis_result
-                )
+            print(f"Found ingredients: {ingredients[:5]}...")
             
-            return jsonify(analysis_result)
+            # Analyze with OpenAI
+            analysis_result = analyze_with_ai(ingredients)
+            if not analysis_result:
+                error_msg = "Failed to analyze ingredients"
+                if "quota exceeded" in str(e).lower() or "insufficient_quota" in str(e).lower():
+                    error_msg = (
+                        "The AI service is currently unavailable due to API quota limits. "
+                        "Please try again later or contact support for assistance."
+                    )
+                print("AI analysis failed:", error_msg)
+                return jsonify({'success': False, 'error': error_msg})
             
+            print("Analysis successful")
+            print(f"Health score: {analysis_result.get('health_score')}")
+            print(f"Categories: {list(analysis_result.get('ingredient_percentages', {}).keys())}")
+            
+            # Add product name to the result
+            analysis_result['product_name'] = product_name
+            
+            # Save to database
+            try:
+                print("Saving to database...")
+                user_id = session.get('user_id')
+                analysis_id = analysis_model.save_analysis(user_id, extracted_text, analysis_result)
+                
+                if not analysis_id:
+                    print("Failed to save to database")
+                    return jsonify({'success': False, 'error': 'Failed to save analysis'})
+                    
+                print("Successfully saved to database")
+                
+            except Exception as e:
+                print(f"Database error: {str(e)}")
+                return jsonify({'success': False, 'error': 'Failed to save analysis'})
+
+            return jsonify({
+                'success': True,
+                'product_name': product_name,
+                'health_score': analysis_result['health_score'],
+                'ingredients': analysis_result['ingredients'],
+                'ingredient_percentages': analysis_result['ingredient_percentages']
+            })
+
         except Exception as e:
-            return jsonify({'success': False, 'error': f'Analysis failed: {str(e)}'})
-        
+            print(f"Analysis error: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({
+                'success': False, 
+                'error': 'Failed to analyze ingredients',
+                'details': str(e),
+                'traceback': traceback.format_exc()
+            })
+
     except Exception as e:
-        print(f"Error in analyze endpoint: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)})
+        print(f"General error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False, 
+            'error': 'An unexpected error occurred',
+            'details': str(e),
+            'traceback': traceback.format_exc()
+        })
+
+@app.route('/analyze_with_ai', methods=['POST'])
+@login_required
+def analyze_with_ai():
+    try:
+        data = request.get_json()
+        if not data or 'ingredients_text' not in data:
+            return jsonify({'error': 'No ingredients text provided'}), 400
+            
+        ingredients_text = data['ingredients_text']
+        if not ingredients_text:
+            return jsonify({'error': 'Empty ingredients text'}), 400
+            
+        # Here we'll add OpenAI integration later
+        # For now, just use our basic analyzer
+        analyzer = IngredientService()
+        result = analyzer.analyze_ingredients(ingredients_text)
+        
+        if not result.get('success', False):
+            return jsonify({'error': f'Analysis failed: {result.get("error", "Unknown error")}'})
+            
+        # Save to database
+        user_id = session.get('user_id')
+        analysis_id = analysis_model.save_analysis(
+            user_id=user_id,
+            ingredients_text=ingredients_text,
+            analysis_result=result
+        )
+        
+        if not analysis_id:
+            return jsonify({'error': 'Failed to save analysis'}), 500
+            
+        result['analysis_id'] = str(analysis_id)
+        return jsonify(result)
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/history')
 @login_required
@@ -241,20 +365,14 @@ def history():
         user_id = session.get('user_id')
         page = request.args.get('page', 1, type=int)
         per_page = 10
+        skip = (page - 1) * per_page
         
-        # Get paginated analyses from database
-        analyses = list(analysis_model.get_user_analyses(
-            user_id=user_id,
-            skip=(page - 1) * per_page,
-            limit=per_page
-        ))
+        # Get analyses from database
+        analyses = analysis_model.get_user_analyses(user_id, skip=skip, limit=per_page)
         
         # Process analyses for display
         processed_analyses = []
         for analysis in analyses:
-            # First serialize MongoDB objects
-            analysis = serialize_mongo_doc(analysis)
-            
             # Format created_at date
             if 'created_at' in analysis:
                 created_at = analysis['created_at']
@@ -279,88 +397,85 @@ def history():
                 }
             
             if 'health_score' not in analysis:
-                analysis['health_score'] = calculate_health_score(analysis['ingredient_percentages'])
-            
-            if 'ingredients_text' not in analysis:
-                analysis['ingredients_text'] = 'No ingredients listed'
+                analysis['health_score'] = 0
                 
             if 'product_name' not in analysis:
                 analysis['product_name'] = 'Unnamed Product'
+                
+            if 'ingredients_text' not in analysis:
+                analysis['ingredients_text'] = 'No ingredients listed'
                 
             processed_analyses.append(analysis)
         
         # Sort by created_at date
         processed_analyses.sort(key=lambda x: x.get('created_at', ''), reverse=True)
         
+        # Check if there are more pages
+        total_analyses = len(processed_analyses)
+        has_next = total_analyses == per_page
+        
         return render_template('history_new.html', 
                              analyses=processed_analyses,
                              page=page,
-                             has_next=len(analyses) == per_page)
+                             has_next=has_next)
                              
     except Exception as e:
-        print(f"Error loading history: {str(e)}")
+        logger.error(f"Error loading history: {str(e)}")
         flash(f"Error loading history: {str(e)}", 'error')
         return redirect(url_for('dashboard'))
-
-@app.route('/analyze_with_ai', methods=['POST'])
-@login_required
-def analyze_with_ai():
-    data = request.get_json()
-    ingredients_text = data.get('text', '').strip()
-    
-    if not ingredients_text:
-        return jsonify({
-            'success': False,
-            'error': "No ingredients text provided"
-        }), 400
-            
-    # Here we'll add OpenAI integration later
-    # For now, just use our basic analyzer
-    analyzer = IngredientAnalyzer()
-    result = analyzer.analyze_ingredients(ingredients_text)
-    print("Analysis result:", result)  # Debug log
-    
-    if 'error' in result:
-        return jsonify({
-            'success': False,
-            'error': result['error']
-        }), 400
-            
-    return jsonify({
-        'success': True,
-        'result': result
-    })
 
 @app.route('/compare')
 @login_required
 def compare_page():
-    user_id = session.get('user_id')
-    analyses = list(analysis_model.get_user_analyses(user_id))
-    
-    # Process analyses for display
-    for analysis in analyses:
-        analysis['_id'] = str(analysis['_id'])
-        analysis['date'] = analysis['created_at'].strftime('%Y-%m-%d %H:%M')
+    try:
+        user_id = session.get('user_id')
+        analyses = analysis_model.get_user_analyses(user_id, skip=0, limit=100)
         
-        if 'ingredient_categories' not in analysis:
-            analysis['ingredient_categories'] = {
-                'Natural': 45,
-                'Additives': 20,
-                'Preservatives': 15,
-                'Colors': 10,
-                'Others': 10
-            }
+        # Process analyses for display
+        processed_analyses = []
+        for analysis in analyses:
+            # Format created_at date
+            if 'created_at' in analysis:
+                created_at = analysis['created_at']
+                if isinstance(created_at, str):
+                    try:
+                        created_at = datetime.strptime(created_at, '%Y-%m-%d %H:%M:%S')
+                    except:
+                        try:
+                            created_at = datetime.strptime(created_at, '%Y-%m-%dT%H:%M:%S')
+                        except:
+                            created_at = datetime.now()
+                analysis['date'] = created_at.strftime('%Y-%m-%d %H:%M')
+            else:
+                analysis['date'] = datetime.now().strftime('%Y-%m-%d %H:%M')
             
-        if 'health_score' not in analysis:
-            analysis['health_score'] = 75
-            
-        if 'product_name' not in analysis:
-            analysis['product_name'] = 'Unnamed Product'
-            
-        if 'ingredients_text' not in analysis:
-            analysis['ingredients_text'] = 'No ingredients listed'
-    
-    return render_template('compare.html', analyses=analyses)
+            # Ensure we have ingredient percentages
+            if 'ingredient_percentages' not in analysis:
+                analysis['ingredient_percentages'] = {
+                    'Natural': 0,
+                    'Additives': 0,
+                    'Preservatives': 0,
+                    'Artificial Colors': 0,
+                    'Highly Processed': 0
+                }
+                
+            if 'health_score' not in analysis:
+                analysis['health_score'] = 0
+                
+            if 'product_name' not in analysis:
+                analysis['product_name'] = 'Unnamed Product'
+                
+            if 'ingredients_text' not in analysis:
+                analysis['ingredients_text'] = 'No ingredients listed'
+                
+            processed_analyses.append(analysis)
+        
+        return render_template('compare.html', analyses=processed_analyses)
+        
+    except Exception as e:
+        logger.error(f"Error in compare page: {str(e)}")
+        flash(f"Error loading comparison page: {str(e)}", 'error')
+        return redirect(url_for('dashboard'))
 
 @app.route('/compare_analyses', methods=['POST'])
 @login_required
@@ -372,39 +487,50 @@ def compare_analyses():
         if not analysis_ids:
             return jsonify({'success': False, 'message': 'No analyses selected'})
         
-        if len(analysis_ids) < 2:
-            return jsonify({'success': False, 'message': 'Please select at least 2 products to compare'})
+        if len(analysis_ids) != 2:
+            return jsonify({'success': False, 'message': 'Please select exactly 2 products to compare'})
         
         analyses = []
         for analysis_id in analysis_ids:
-            analysis = analysis_model.get_analysis_by_id(analysis_id)
-            if analysis:
-                # First serialize MongoDB objects
-                analysis = serialize_mongo_doc(analysis)
-                
-                # Ensure we have ingredient percentages
-                if 'ingredient_percentages' not in analysis:
-                    analysis['ingredient_percentages'] = {
-                        'Natural': 0,
-                        'Additives': 0,
-                        'Preservatives': 0,
-                        'Artificial Colors': 0,
-                        'Highly Processed': 0
-                    }
-                
-                # For backward compatibility with UI
-                analysis['ingredient_categories'] = analysis['ingredient_percentages']
-                
-                if 'health_score' not in analysis:
-                    analysis['health_score'] = calculate_health_score(analysis['ingredient_percentages'])
+            try:
+                analysis = analysis_model.collection.find_one({'_id': ObjectId(analysis_id)})
+                if analysis:
+                    # Convert ObjectId to string for JSON serialization
+                    analysis['_id'] = str(analysis['_id'])
+                    if 'user_id' in analysis:
+                        analysis['user_id'] = str(analysis['user_id'])
+                    if 'created_at' in analysis:
+                        analysis['created_at'] = analysis['created_at'].strftime('%Y-%m-%d %H:%M:%S')
                     
-                if 'product_name' not in analysis:
-                    analysis['product_name'] = 'Unnamed Product'
+                    # Ensure we have ingredient percentages
+                    if 'ingredient_percentages' not in analysis:
+                        analysis['ingredient_percentages'] = {
+                            'Natural': 0,
+                            'Additives': 0,
+                            'Preservatives': 0,
+                            'Artificial Colors': 0,
+                            'Highly Processed': 0
+                        }
                     
-                if 'ingredients_text' not in analysis:
-                    analysis['ingredients_text'] = 'No ingredients listed'
-                
-                analyses.append(analysis)
+                    # For backward compatibility with UI
+                    analysis['ingredient_categories'] = analysis['ingredient_percentages']
+                    
+                    if 'health_score' not in analysis:
+                        analysis['health_score'] = 0
+                        
+                    if 'product_name' not in analysis:
+                        analysis['product_name'] = 'Unnamed Product'
+                        
+                    if 'ingredients_text' not in analysis:
+                        analysis['ingredients_text'] = 'No ingredients listed'
+                    
+                    analyses.append(analysis)
+            except Exception as e:
+                print(f"Error processing analysis {analysis_id}: {str(e)}")
+                continue
+        
+        if len(analyses) != 2:
+            return jsonify({'success': False, 'message': 'Could not find both selected products'})
         
         return jsonify({
             'success': True,
@@ -541,21 +667,103 @@ def delete_user(user_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/test_ocr', methods=['POST'])
+def test_ocr():
+    try:
+        data = request.get_json()
+        if not data or 'content' not in data:
+            return jsonify({'success': False, 'error': 'No image data provided'})
+        
+        content = data.get('content')
+        print("Received image data length:", len(content) if content else 0)
+        
+        try:
+            # Remove header of base64 image if present
+            if 'base64,' in content:
+                print("Found base64 header, removing it...")
+                content = content.split('base64,')[1]
+            
+            print("Testing OCR service...")
+            print("Tesseract path:", pytesseract.pytesseract.tesseract_cmd)
+            print("Tesseract exists:", os.path.exists(pytesseract.pytesseract.tesseract_cmd))
+            
+            extracted_text = ocr_service.extract_text_from_base64(content)
+            print("Extracted text:", extracted_text[:100] if extracted_text else "No text extracted")
+            
+            return jsonify({
+                'success': True,
+                'text': extracted_text,
+                'tesseract_path': pytesseract.pytesseract.tesseract_cmd,
+                'tesseract_exists': os.path.exists(pytesseract.pytesseract.tesseract_cmd)
+            })
+            
+        except Exception as e:
+            print(f"OCR processing error: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({
+                'success': False,
+                'error': str(e),
+                'traceback': traceback.format_exc(),
+                'tesseract_path': pytesseract.pytesseract.tesseract_cmd,
+                'tesseract_exists': os.path.exists(pytesseract.pytesseract.tesseract_cmd)
+            })
+            
+    except Exception as e:
+        print(f"Test route error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e), 'traceback': traceback.format_exc()})
+
 def process_ingredients(text):
-    """Extract ingredients from text using simple rules."""
-    # Remove common words and clean text
-    text = text.lower()
-    text = re.sub(r'ingredients:', '', text)
-    text = re.sub(r'[^\w\s,]', '', text)
+    """Process and clean ingredients text."""
+    if not text:
+        return []
+        
+    # Remove common prefixes
+    text = re.sub(r'^ingredients:?\s*', '', text.lower(), flags=re.IGNORECASE)
     
-    # Split by commas or spaces
-    ingredients = [ing.strip() for ing in re.split(r'[,\n]', text)]
+    # Split ingredients by common delimiters
+    ingredients = re.split(r'[,;.]', text)
     
-    # Filter out empty strings and common words
-    ingredients = [ing for ing in ingredients if ing and len(ing) > 1]
+    # Clean and filter ingredients
+    cleaned_ingredients = []
+    for ingredient in ingredients:
+        # Clean the ingredient
+        ingredient = ingredient.strip()
+        ingredient = re.sub(r'\([^)]*\)', '', ingredient)  # Remove parentheses and their contents
+        ingredient = re.sub(r'\s+', ' ', ingredient)  # Normalize whitespace
+        
+        # Skip if too short or empty
+        if len(ingredient) < 2:
+            continue
+            
+        # Skip if it's just numbers or symbols
+        if re.match(r'^[\d\W]+$', ingredient):
+            continue
+            
+        cleaned_ingredients.append(ingredient)
     
-    # Return unique ingredients
-    return list(set(ingredients))
+    return cleaned_ingredients
+
+def analyze_with_ai(ingredients):
+    """Analyze ingredients using the ingredient service."""
+    try:
+        # Join ingredients into a text string
+        ingredients_text = ', '.join(ingredients)
+        
+        # Use the ingredient service to analyze
+        result = ingredient_service.analyze_ingredients(ingredients_text)
+        
+        if not result:
+            print("No result from ingredient service")
+            return None
+            
+        return result
+        
+    except Exception as e:
+        print(f"Error in analyze_with_ai: {str(e)}")
+        return None
 
 def serialize_mongo_doc(doc):
     """Convert MongoDB document to JSON-serializable format"""
@@ -582,6 +790,10 @@ def serialize_analysis(analysis):
         # Convert datetime to string
         if 'created_at' in analysis:
             analysis['created_at'] = analysis['created_at'].strftime('%Y-%m-%d %H:%M:%S')
+            
+        # Ensure we have product name
+        if 'product_name' not in analysis:
+            analysis['product_name'] = 'Unnamed Product'
             
         # Handle undefined values in analysis_result
         if 'analysis_result' in analysis:

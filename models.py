@@ -79,9 +79,9 @@ class IngredientAnalysis:
             "user_id": ObjectId(user_id) if isinstance(user_id, str) else user_id,
             "ingredients_text": ingredients_text,
             "ingredients": analysis_result.get("ingredients", []),
-            "classification_summary": analysis_result.get("classification_summary", {}),
             "ingredient_percentages": analysis_result.get("ingredient_percentages", {}),
             "health_score": analysis_result.get("health_score", 0),
+            "product_name": analysis_result.get("product_name", "Unnamed Product"),
             "created_at": datetime.datetime.utcnow()
         }
         

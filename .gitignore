@@ -29,6 +29,8 @@ Ingrediant/
 
 # Environment Variables
 .env
+.env.*
+!.env.example
 
 # Node
 node_modules/
@@ -47,3 +49,8 @@ package.json
 # OS
 .DS_Store
 Thumbs.db
+
+# Project specific
+testing_images/
+doc.txt
+info.md

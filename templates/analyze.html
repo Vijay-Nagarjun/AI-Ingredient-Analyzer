@@ -7,6 +7,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
             background-color: #0a192f;
@@ -19,18 +20,104 @@
             padding: 20px;
         }
         .card {
-            background-color: rgba(255, 255, 255, 0.1);
-            border-radius: 15px;
+            background-color: #112240;
+            border: 1px solid #1e3a8a;
+            border-radius: 10px;
             padding: 20px;
             margin-bottom: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
         }
+
+        .card h2, .card h3, .card h4, .card p, .card li {
+            color: white;
+        }
+
+        .results-text {
+            color: white !important;
+        }
+
+        #resultsSection {
+            color: white;
+        }
+
+        #resultsSection .list-group-item {
+            background-color: #1a365d;
+            border-color: #2d4a7f;
+            color: white;
+        }
+
+        #resultsSection .list-group-item:hover {
+            background-color: #2d4a7f;
+        }
+
+        .chart-container {
+            background-color: #112240;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .ingredient-list {
+            color: white;
+            list-style-type: none;
+            padding-left: 0;
+        }
+
+        .ingredient-list li {
+            background-color: #1a365d;
+            margin-bottom: 5px;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #2d4a7f;
+        }
+
+        .health-score {
+            font-size: 24px;
+            font-weight: bold;
+            color: white;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .percentage-bar {
+            background-color: #1a365d;
+            border: 1px solid #2d4a7f;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            color: white;
+        }
+
+        /* Make form inputs and labels white */
+        label, input, textarea {
+            color: white;
+        }
+
+        input, textarea {
+            background-color: #1a365d;
+            border: 1px solid #2d4a7f;
+        }
+
+        input::placeholder, textarea::placeholder {
+            color: #a0aec0;
+        }
+
+        /* Style buttons */
         .btn-primary {
-            background-color: #3498db;
-            border: none;
-            padding: 0.8rem 1.5rem;
-            border-radius: 25px;
+            background-color: #3182ce;
+            border-color: #2b6cb0;
         }
+
+        .btn-primary:hover {
+            background-color: #2c5282;
+            border-color: #2a4365;
+        }
+
+        /* Make table text white if you have any tables */
+        table, th, td {
+            color: white;
+        }
+
         .btn-outline {
             border: 1px solid #3498db;
             color: #3498db;
@@ -49,28 +136,6 @@
             display: none;
             border-radius: 10px;
         }
-
-        .navbar-toggler {
-            border: 2px solid var(--primary-color);
-            padding: 0.5rem;
-            border-radius: 0.5rem;
-            transition: all 0.3s ease;
-        }
-
-        .navbar-toggler:focus {
-            box-shadow: 0 0 0 0.25rem rgba(52, 152, 219, 0.25);
-        }
-
-        .navbar-toggler-icon {
-            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba(52, 152, 219, 1)' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") !important;
-            width: 1.5em;
-            height: 1.5em;
-        }
-
-        .navbar-toggler:hover {
-            background: rgba(52, 152, 219, 0.1);
-        }
-
         .input-method {
             display: none;
         }
@@ -101,24 +166,11 @@
             display: none;
         }
         .chart-container {
-            width: 300px;
-            height: 300px;
-            margin: 0 auto;
             position: relative;
-        }
-        .ingredient-item {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 10px;
-            padding: 15px;
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-        }
-        .ingredient-color {
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            margin-right: 15px;
+            width: 320px;
+            height: 320px;
+            margin: 0 auto;
+            cursor: pointer;
         }
         .health-score {
             position: absolute;
@@ -126,18 +178,87 @@
             left: 50%;
             transform: translate(-50%, -50%);
             text-align: center;
+            pointer-events: none;
         }
-        .health-score .score {
-            font-size: 48px;
-            font-weight: bold;
-            color: white;
+        .score {
+            font-size: 36px;
+            font-weight: 700;
+            color: #ffffff;
+            margin: 0;
         }
-        .health-score .label {
-            font-size: 16px;
+        .score-label {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.7);
+            margin: 0;
+        }
+        .ingredient-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+        .ingredient-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .ingredient-color {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            margin-right: 15px;
+        }
+        .ingredient-info {
+            flex-grow: 1;
+        }
+        .ingredient-name {
+            margin: 0;
+            font-weight: 500;
+        }
+        .ingredient-percentage {
+            font-size: 14px;
             color: rgba(255, 255, 255, 0.7);
         }
-        .cropper-container {
-            margin: 20px auto;
+        #resultsSection {
+            display: none;
+            margin-top: 30px;
+        }
+        .camera-container, .upload-container {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .upload-area {
+            border: 2px dashed rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            padding: 2rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .upload-area:hover {
+            border-color: #3498db;
+            background: rgba(52, 152, 219, 0.1);
+        }
+
+        .upload-area i {
+            font-size: 3rem;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 1rem;
+        }
+
+        .upload-area p {
+            color: rgba(255, 255, 255, 0.7);
+            margin: 0;
+        }
+
+        .camera-buttons, .upload-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
         }
     </style>
 </head>
@@ -146,277 +267,228 @@
         <div class="card">
             <h2 class="mb-4">Analyze Ingredients</h2>
             
-            <div class="mb-4">
-                <div class="btn-group w-100" role="group">
-                    <button class="btn btn-outline active" onclick="showTextInput()">
-                        <i class="bi bi-keyboard me-2"></i>Text Input
-                    </button>
-                    <button class="btn btn-outline" onclick="showCamera()">
-                        <i class="bi bi-camera me-2"></i>Capture Image
-                    </button>
-                    <button class="btn btn-outline" onclick="showUpload()">
-                        <i class="bi bi-upload me-2"></i>Upload Image
-                    </button>
-                </div>
+            <!-- Input Type Selection -->
+            <div class="btn-group mb-4" role="group">
+                <button class="btn btn-outline me-2" onclick="showTextInput()">
+                    <i class="bi bi-text-paragraph"></i> Text Input
+                </button>
+                <button class="btn btn-outline me-2" onclick="showCamera()">
+                    <i class="bi bi-camera"></i> Camera
+                </button>
+                <button class="btn btn-outline" onclick="showUpload()">
+                    <i class="bi bi-upload"></i> Upload Image
+                </button>
             </div>
 
             <!-- Text Input Section -->
-            <div id="textInputSection" class="input-method active">
-                <div class="form-group">
-                    <label for="ingredientsText">Enter Ingredients List:</label>
-                    <textarea class="form-control bg-dark text-white" id="ingredientsText" rows="5" placeholder="Enter ingredients..."></textarea>
-                </div>
-                <button class="btn btn-primary mt-3" onclick="analyzeText()">Analyze Text</button>
+            <div id="textInputSection" class="input-method">
+                <input id="productNameText" class="form-control mb-3" type="text" placeholder="Enter product name">
+                <textarea id="ingredientsText" class="form-control mb-3" rows="5" 
+                    placeholder="Enter ingredients list here..."></textarea>
+                <button class="btn btn-primary" onclick="analyzeText()">Analyze Text</button>
             </div>
 
             <!-- Camera Section -->
-            <div id="cameraSection" class="input-method">
-                <video id="cameraPreview" autoplay playsinline></video>
-                <img id="capturedImage" src="" alt="Captured image">
-                <div id="cameraButtons">
-                    <button id="captureBtn" class="btn btn-primary me-2" onclick="capture()">
+            <div id="cameraInputSection" class="input-method" style="display: none;">
+                <input id="productNameCamera" class="form-control mb-3" type="text" placeholder="Enter product name">
+                <div class="camera-container mb-3">
+                    <video id="cameraPreview" autoplay playsinline style="width: 100%; max-width: 640px;"></video>
+                    <canvas id="capturedImage" style="display: none; width: 100%; max-width: 640px;"></canvas>
+                </div>
+                <div class="camera-buttons">
+                    <button id="startCameraBtn" class="btn btn-primary" onclick="startCamera()">
+                        <i class="bi bi-camera"></i> Start Camera
+                    </button>
+                    <button id="captureBtn" class="btn btn-primary" onclick="capture()" style="display: none;">
                         <i class="bi bi-camera"></i> Capture
                     </button>
-                    <button id="cropBtn" class="btn btn-primary me-2" onclick="cropImage()" style="display: none;">
-                        <i class="bi bi-crop"></i> Crop
-                    </button>
-                    <button id="retakeBtn" class="btn btn-outline me-2" onclick="retake()" style="display: none;">
+                    <button id="retakeBtn" class="btn btn-outline" onclick="retake()" style="display: none;">
                         <i class="bi bi-arrow-counterclockwise"></i> Retake
                     </button>
                     <button id="analyzeImageBtn" class="btn btn-primary" onclick="analyzeImage()" style="display: none;">
-                        <i class="bi bi-search"></i> Analyze
+                        <i class="bi bi-search"></i> Analyze Image
                     </button>
                 </div>
             </div>
 
             <!-- Upload Section -->
-            <div id="uploadSection" class="input-method">
-                <div class="file-upload-wrapper" onclick="document.getElementById('fileInput').click()">
-                    <i class="bi bi-cloud-upload"></i>
-                    <p class="mb-0">Click or drag image here</p>
-                    <input type="file" id="fileInput" accept="image/*" style="display: none" onchange="handleFileUpload(event)">
-                </div>
-                <img id="uploadedImage" src="" alt="Uploaded image">
-                <div id="uploadButtons" style="display: none">
-                    <button class="btn btn-primary me-2" onclick="analyzeUploadedImage()">Analyze</button>
-                    <button class="btn btn-outline" onclick="resetUpload()">Reset</button>
-                </div>
-            </div>
-
-            <!-- Results Section -->
-            <div id="resultsSection" style="display: none;">
-                <div class="card mt-4">
-                    <h3>Analysis Results</h3>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="chart-container">
-                                <canvas id="ingredientsChart"></canvas>
-                                <div class="health-score">
-                                    <div class="score">0</div>
-                                    <div class="label">Health Score</div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div id="ingredientsList"></div>
-                            <div id="extractedText" class="mt-4 text-muted"></div>
-                        </div>
+            <div id="uploadInputSection" class="input-method" style="display: none;">
+                <input id="productNameUpload" class="form-control mb-3" type="text" placeholder="Enter product name">
+                <div class="upload-container mb-3">
+                    <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                        <i class="bi bi-cloud-upload"></i>
+                        <p>Drop image here or click to upload</p>
+                        <input type="file" id="fileInput" accept="image/*" onchange="handleFileUpload(event)" style="display: none;">
                     </div>
+                    <img id="uploadPreview" style="display: none; width: 100%; max-width: 640px;">
+                </div>
+                <div class="upload-buttons">
+                    <button id="analyzeUploadBtn" class="btn btn-primary" onclick="analyzeUploadedImage()" style="display: none;">
+                        <i class="bi bi-search"></i> Analyze Image
+                    </button>
+                    <button id="resetUploadBtn" class="btn btn-outline" onclick="resetUpload()" style="display: none;">
+                        <i class="bi bi-arrow-counterclockwise"></i> Reset
+                    </button>
                 </div>
             </div>
         </div>
+
+        <!-- Results Section -->
+        <div id="resultsSection" class="mt-4">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card mb-4">
+                        <div class="chart-container">
+                            <canvas id="ingredientChart"></canvas>
+                            <div class="health-score">
+                                <h3 class="score"><span id="healthScore">0</span>%</h3>
+                                <p class="score-label">Health Score</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card mb-4">
+                        <h4 class="mb-3">Ingredient Analysis</h4>
+                        <div id="ingredientsList"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <h4 class="mb-3">Detailed Results</h4>
+                <div id="analysisResults" class="mt-3"></div>
+            </div>
+        </div>
+        <div id="error-message" style="display: none;"></div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.js"></script>
     <script>
-        let currentMode = 'text';
-        let stream = null;
-        let cropper = null;
+        let chart = null;
 
         function showTextInput() {
-            currentMode = 'text';
-            document.querySelectorAll('.input-method').forEach(el => el.classList.remove('active'));
-            document.querySelector('#textInputSection').classList.add('active');
+            document.querySelectorAll('.input-method').forEach(el => el.style.display = 'none');
+            document.getElementById('textInputSection').style.display = 'block';
             document.querySelectorAll('.btn-outline').forEach(btn => btn.classList.remove('active'));
             document.querySelector('button[onclick="showTextInput()"]').classList.add('active');
-            stopCamera();
         }
 
         function showCamera() {
-            currentMode = 'camera';
-            document.querySelectorAll('.input-method').forEach(el => el.classList.remove('active'));
-            document.querySelector('#cameraSection').classList.add('active');
+            document.querySelectorAll('.input-method').forEach(el => el.style.display = 'none');
+            document.getElementById('cameraInputSection').style.display = 'block';
             document.querySelectorAll('.btn-outline').forEach(btn => btn.classList.remove('active'));
             document.querySelector('button[onclick="showCamera()"]').classList.add('active');
-            startCamera();
+            document.getElementById('startCameraBtn').style.display = 'inline-block';
+            document.getElementById('captureBtn').style.display = 'none';
+            document.getElementById('retakeBtn').style.display = 'none';
+            document.getElementById('analyzeImageBtn').style.display = 'none';
         }
 
         function showUpload() {
-            currentMode = 'upload';
-            document.querySelectorAll('.input-method').forEach(el => el.classList.remove('active'));
-            document.querySelector('#uploadSection').classList.add('active');
+            document.querySelectorAll('.input-method').forEach(el => el.style.display = 'none');
+            document.getElementById('uploadInputSection').style.display = 'block';
             document.querySelectorAll('.btn-outline').forEach(btn => btn.classList.remove('active'));
             document.querySelector('button[onclick="showUpload()"]').classList.add('active');
-            stopCamera();
+            resetUpload();
         }
 
         async function startCamera() {
             try {
-                stream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        facingMode: 'environment'
-                    }
-                });
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
                 const video = document.getElementById('cameraPreview');
                 video.srcObject = stream;
                 video.style.display = 'block';
+                document.getElementById('startCameraBtn').style.display = 'none';
                 document.getElementById('captureBtn').style.display = 'inline-block';
-                document.getElementById('cropBtn').style.display = 'none';
-                document.getElementById('retakeBtn').style.display = 'none';
-                document.getElementById('analyzeImageBtn').style.display = 'none';
             } catch (err) {
-                alert('Error accessing camera: ' + err.message);
+                console.error("Error accessing camera:", err);
+                alert("Error accessing camera. Please make sure you have granted camera permissions.");
             }
         }
 
         function stopCamera() {
+            const video = document.getElementById('cameraPreview');
+            const stream = video.srcObject;
             if (stream) {
                 stream.getTracks().forEach(track => track.stop());
-                stream = null;
+                video.srcObject = null;
             }
-            const video = document.getElementById('cameraPreview');
-            video.srcObject = null;
-            video.style.display = 'none';
         }
 
         function capture() {
             const video = document.getElementById('cameraPreview');
-            const canvas = document.createElement('canvas');
+            const canvas = document.getElementById('capturedImage');
+            
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
             
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(video, 0, 0);
-            
-            const capturedImage = document.getElementById('capturedImage');
-            capturedImage.src = canvas.toDataURL('image/png');
-            capturedImage.style.display = 'block';
+            video.style.display = 'none';
+            canvas.style.display = 'block';
+            document.getElementById('captureBtn').style.display = 'none';
+            document.getElementById('retakeBtn').style.display = 'inline-block';
+            document.getElementById('analyzeImageBtn').style.display = 'inline-block';
             
             stopCamera();
-            video.style.display = 'none';
-            
-            document.getElementById('captureBtn').style.display = 'none';
-            document.getElementById('cropBtn').style.display = 'inline-block';
-            document.getElementById('retakeBtn').style.display = 'inline-block';
-            
-            // Initialize cropper
-            if (cropper) {
-                cropper.destroy();
-            }
-            cropper = new Cropper(capturedImage, {
-                aspectRatio: NaN,
-                viewMode: 1,
-                dragMode: 'move',
-                autoCropArea: 0.8,
-                restore: false,
-                guides: true,
-                center: true,
-                highlight: false,
-                cropBoxMovable: true,
-                cropBoxResizable: true,
-                toggleDragModeOnDblclick: false,
-            });
-        }
-
-        function cropImage() {
-            if (!cropper) return;
-            
-            const croppedCanvas = cropper.getCroppedCanvas();
-            const capturedImage = document.getElementById('capturedImage');
-            capturedImage.src = croppedCanvas.toDataURL('image/png');
-            
-            cropper.destroy();
-            cropper = null;
-            
-            document.getElementById('cropBtn').style.display = 'none';
-            document.getElementById('analyzeImageBtn').style.display = 'inline-block';
         }
 
         function retake() {
-            if (cropper) {
-                cropper.destroy();
-                cropper = null;
-            }
-            const capturedImage = document.getElementById('capturedImage');
-            capturedImage.style.display = 'none';
-            
-            document.getElementById('cropBtn').style.display = 'none';
+            const canvas = document.getElementById('capturedImage');
+            canvas.style.display = 'none';
             document.getElementById('retakeBtn').style.display = 'none';
             document.getElementById('analyzeImageBtn').style.display = 'none';
-            document.getElementById('resultsSection').style.display = 'none';
-            
             startCamera();
-        }
-
-        function analyzeImage() {
-            const image = document.getElementById('capturedImage');
-            if (!image.src) {
-                alert('Please capture or upload an image first');
-                return;
-            }
-
-            fetch('/analyze', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    type: 'image',
-                    content: image.src
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    displayResults(data);
-                } else {
-                    alert('Analysis failed: ' + data.error);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('An error occurred during analysis');
-            });
         }
 
         function handleFileUpload(event) {
             const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const uploadedImage = document.getElementById('uploadedImage');
-                    uploadedImage.src = e.target.result;
-                    uploadedImage.style.display = 'block';
-                    document.getElementById('uploadButtons').style.display = 'block';
-                };
-                reader.readAsDataURL(file);
+            if (!file) {
+                return;
             }
+            
+            // Validate file type
+            if (!file.type.startsWith('image/')) {
+                alert('Please select an image file');
+                event.target.value = '';
+                return;
+            }
+            
+            // Validate file size (max 5MB)
+            const maxSize = 5 * 1024 * 1024; // 5MB
+            if (file.size > maxSize) {
+                alert('Image size must be less than 5MB');
+                event.target.value = '';
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const preview = document.getElementById('uploadPreview');
+                preview.src = e.target.result;
+                preview.style.display = 'block';
+                document.getElementById('analyzeUploadBtn').style.display = 'inline-block';
+                document.getElementById('resetUploadBtn').style.display = 'inline-block';
+            };
+            reader.onerror = function(e) {
+                console.error('FileReader error:', e);
+                alert('Error reading file. Please try again.');
+                event.target.value = '';
+            };
+            reader.readAsDataURL(file);
         }
 
         function resetUpload() {
             document.getElementById('fileInput').value = '';
-            document.getElementById('uploadedImage').style.display = 'none';
-            document.getElementById('uploadButtons').style.display = 'none';
+            document.getElementById('uploadPreview').style.display = 'none';
+            document.getElementById('analyzeUploadBtn').style.display = 'none';
+            document.getElementById('resetUploadBtn').style.display = 'none';
         }
 
-        function analyzeUploadedImage() {
-            const image = document.getElementById('uploadedImage');
-            if (!image.src) {
-                alert('Please upload an image first');
-                return;
-            }
+        function analyzeImage() {
+            const canvas = document.getElementById('capturedImage');
+            const productName = document.getElementById('productNameCamera').value;
             
             fetch('/analyze', {
                 method: 'POST',
@@ -425,7 +497,8 @@
                 },
                 body: JSON.stringify({
                     type: 'image',
-                    content: image.src
+                    content: canvas.toDataURL('image/png'),
+                    product_name: productName || 'Unnamed Product'
                 })
             })
             .then(response => response.json())
@@ -433,22 +506,99 @@
                 if (data.success) {
                     displayResults(data);
                 } else {
-                    alert('Analysis failed: ' + data.error);
+                    console.error('Analysis failed:', data.error);
+                    displayError(data.error);
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('An error occurred during analysis');
+                displayError('Failed to analyze image. Please try again.');
+            });
+        }
+
+        function analyzeUploadedImage() {
+            const preview = document.getElementById('uploadPreview');
+            const productName = document.getElementById('productNameUpload').value;
+            
+            if (!preview.src || preview.src === '') {
+                alert('Please select an image first');
+                return;
+            }
+            
+            // Show loading state
+            const analyzeBtn = document.getElementById('analyzeUploadBtn');
+            const originalText = analyzeBtn.textContent;
+            analyzeBtn.textContent = 'Analyzing...';
+            analyzeBtn.disabled = true;
+            
+            // First test OCR
+            console.log("Testing OCR service...");
+            fetch('/test_ocr', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    content: preview.src
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log("OCR Test Results:", data);
+                
+                if (!data.success) {
+                    throw new Error(`OCR Test Failed: ${data.error}\n\nDetails:\n${data.traceback}`);
+                }
+                
+                if (!data.tesseract_exists) {
+                    throw new Error(`Tesseract not found at path: ${data.tesseract_path}`);
+                }
+                
+                // If OCR test successful, proceed with analysis
+                return fetch('/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        type: 'image',
+                        content: preview.src,
+                        product_name: productName || 'Unnamed Product'
+                    })
+                });
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Reset button state
+                analyzeBtn.textContent = originalText;
+                analyzeBtn.disabled = false;
+                
+                if (data.success) {
+                    displayResults(data);
+                } else {
+                    console.error('Analysis failed:', data.error);
+                    displayError(data.error);
+                }
+            })
+            .catch(error => {
+                // Reset button state
+                analyzeBtn.textContent = originalText;
+                analyzeBtn.disabled = false;
+                
+                console.error('Error:', error);
+                displayError(error.message || 'Failed to analyze image. Please try again.');
             });
         }
 
         function analyzeText() {
-            const text = document.getElementById('ingredientsText').value.trim();
-            if (!text) {
+            const ingredientsText = document.getElementById('ingredientsText').value;
+            const productName = document.getElementById('productNameText').value;
+            
+            if (!ingredientsText) {
                 alert('Please enter ingredients text');
                 return;
             }
-            
+
             fetch('/analyze', {
                 method: 'POST',
                 headers: {
@@ -456,7 +606,8 @@
                 },
                 body: JSON.stringify({
                     type: 'text',
-                    content: text
+                    content: ingredientsText,
+                    product_name: productName || 'Unnamed Product'
                 })
             })
             .then(response => response.json())
@@ -464,104 +615,142 @@
                 if (data.success) {
                     displayResults(data);
                 } else {
-                    alert('Error analyzing text: ' + data.message);
+                    console.error('Analysis failed:', data.error);
+                    displayError(data.error);
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('Error analyzing text');
+                displayError('Failed to analyze ingredients');
             });
-        }
-
-        function drawChart(ingredients, healthScore) {
-            const canvas = document.getElementById('ingredientsChart');
-            const ctx = canvas.getContext('2d');
-            const centerX = canvas.width / 2;
-            const centerY = canvas.height / 2;
-            const radius = 120;
-
-            // Clear canvas
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            // Draw pie chart with gradients
-            let startAngle = -Math.PI / 2;
-            ingredients.forEach(ing => {
-                const sliceAngle = (2 * Math.PI * ing.percentage) / 100;
-                
-                // Create gradient
-                const gradient = ctx.createRadialGradient(
-                    centerX, centerY, radius * 0.6,
-                    centerX, centerY, radius
-                );
-                gradient.addColorStop(0, lightenColor(ing.color, 30));
-                gradient.addColorStop(1, ing.color);
-                
-                ctx.beginPath();
-                ctx.moveTo(centerX, centerY);
-                ctx.arc(centerX, centerY, radius, startAngle, startAngle + sliceAngle);
-                ctx.closePath();
-                
-                ctx.fillStyle = gradient;
-                ctx.fill();
-                
-                // Add percentage label
-                const labelAngle = startAngle + sliceAngle / 2;
-                const labelRadius = radius * 0.75;
-                const labelX = centerX + Math.cos(labelAngle) * labelRadius;
-                const labelY = centerY + Math.sin(labelAngle) * labelRadius;
-                
-                ctx.fillStyle = 'white';
-                ctx.font = 'bold 14px Arial';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(`${ing.percentage}%`, labelX, labelY);
-                
-                startAngle += sliceAngle;
-            });
-
-            // Update health score
-            document.querySelector('.health-score .score').textContent = healthScore;
-        }
-
-        function lightenColor(color, percent) {
-            const num = parseInt(color.replace('#', ''), 16);
-            const amt = Math.round(2.55 * percent);
-            const R = (num >> 16) + amt;
-            const G = (num >> 8 & 0x00FF) + amt;
-            const B = (num & 0x0000FF) + amt;
-            return '#' + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 + (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 + (B < 255 ? B < 1 ? 0 : B : 255)).toString(16).slice(1);
         }
 
         function displayResults(data) {
             document.getElementById('resultsSection').style.display = 'block';
             
-            // Draw chart
-            drawChart(data.ingredients, data.health_score);
+            // Update product name
+            const productNameElement = document.getElementById('productName');
+            productNameElement.textContent = data.product_name;
+            productNameElement.className = 'h3 mb-3 results-text';
             
-            // Display ingredients list
-            const list = document.getElementById('ingredientsList');
-            list.innerHTML = data.ingredients.map(ing => `
-                <div class="ingredient-item">
-                    <div class="ingredient-color" style="background-color: ${ing.color}"></div>
-                    <div>
-                        <h5 class="mb-0">${ing.name}</h5>
-                        <small class="text-muted">${ing.percentage}%</small>
+            // Update health score
+            const healthScoreElement = document.getElementById('healthScore');
+            healthScoreElement.textContent = `Health Score: ${data.health_score}%`;
+            healthScoreElement.className = 'health-score';
+            
+            // Clear previous ingredient list
+            const ingredientList = document.getElementById('ingredientsList');
+            ingredientList.innerHTML = '';
+            ingredientList.className = 'ingredient-list';
+            
+            // Add ingredients with percentages
+            Object.entries(data.ingredient_percentages).forEach(([category, percentage]) => {
+                const li = document.createElement('li');
+                li.className = 'percentage-bar';
+                li.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="results-text">${category}</span>
+                        <span class="results-text">${percentage}%</span>
                     </div>
-                </div>
-            `).join('');
-
-            // Display extracted text
-            const extractedText = document.getElementById('extractedText');
-            if (data.extracted_text) {
-                extractedText.innerHTML = `
-                    <h5>Extracted Text:</h5>
-                    <p>${data.extracted_text}</p>
-                `;
-            }
-
-            // Scroll to results
-            document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth' });
+                    <div class="progress mt-2" style="height: 10px; background-color: #1a365d;">
+                        <div class="progress-bar" role="progressbar" 
+                             style="width: ${percentage}%; background-color: ${getColorForCategory(category)};" 
+                             aria-valuenow="${percentage}" aria-valuemin="0" aria-valuemax="100">
+                        </div>
+                    </div>`;
+                ingredientList.appendChild(li);
+            });
+            
+            // Update pie chart
+            updatePieChart(data.ingredient_percentages);
         }
+        
+        function getColorForCategory(category) {
+            const colors = {
+                'Natural': '#27ae60',
+                'Additives': '#e74c3c',
+                'Preservatives': '#f39c12',
+                'Artificial Colors': '#8e44ad',
+                'Highly Processed': '#2980b9'
+            };
+            return colors[category] || '#95a5a6';
+        }
+        
+        function updatePieChart(percentages) {
+            const ctx = document.getElementById('ingredientChart').getContext('2d');
+            
+            // Destroy existing chart if it exists
+            if (window.ingredientChart) {
+                window.ingredientChart.destroy();
+            }
+            
+            const data = {
+                labels: Object.keys(percentages),
+                datasets: [{
+                    data: Object.values(percentages),
+                    backgroundColor: Object.keys(percentages).map(getColorForCategory),
+                    borderColor: '#112240',
+                    borderWidth: 2
+                }]
+            };
+            
+            window.ingredientChart = new Chart(ctx, {
+                type: 'pie',
+                data: data,
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: 'white',
+                                font: {
+                                    size: 14
+                                },
+                                padding: 20
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.label}: ${context.raw}%`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function displayError(error) {
+            const errorDiv = document.getElementById('error-message');
+            errorDiv.style.display = 'block';
+            errorDiv.style.color = 'white';
+            errorDiv.style.backgroundColor = '#dc3545';
+            errorDiv.style.padding = '15px';
+            errorDiv.style.borderRadius = '5px';
+            errorDiv.style.marginBottom = '20px';
+            
+            // Check if error is a quota error
+            if (error.toLowerCase().includes('quota') || error.toLowerCase().includes('api limit')) {
+                errorDiv.innerHTML = `
+                    <h4 style="color: white; margin-bottom: 10px;">Service Temporarily Unavailable</h4>
+                    <p style="color: white;">${error}</p>
+                    <p style="color: white; margin-top: 10px;">Please try again later or contact support if the issue persists.</p>
+                `;
+            } else {
+                errorDiv.textContent = error;
+            }
+            
+            // Hide loading spinner if it's visible
+            const loadingSpinner = document.getElementById('loading-spinner');
+            if (loadingSpinner) {
+                loadingSpinner.style.display = 'none';
+            }
+        }
+
+        // Show text input by default
+        showTextInput();
     </script>
 </body>
 </html>

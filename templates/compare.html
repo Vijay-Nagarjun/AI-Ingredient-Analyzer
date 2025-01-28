@@ -316,7 +316,7 @@
         <div id="comparison-section" style="display: none;">
             <div class="comparison-container">
                 <div class="product-card">
-                    <h3 class="product-title" id="product1-name"></h3>
+                    <h5 class="card-title mb-3" id="product1-name"></h5>
                     <div class="chart-container">
                         <canvas id="chart1"></canvas>
                     </div>
@@ -329,7 +329,7 @@
                 </div>
 
                 <div class="product-card">
-                    <h3 class="product-title" id="product2-name"></h3>
+                    <h5 class="card-title mb-3" id="product2-name"></h5>
                     <div class="chart-container">
                         <canvas id="chart2"></canvas>
                     </div>
@@ -425,6 +425,11 @@
                 return;
             }
             
+            if (product1 === product2) {
+                alert('Please select two different products to compare');
+                return;
+            }
+            
             fetch('/compare_analyses', {
                 method: 'POST',
                 headers: {
@@ -437,43 +442,44 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    const analyses = data.analyses;
+                    // Hide product list and show comparison
+                    document.querySelector('.select-product').style.display = 'none';
+                    document.getElementById('comparison-section').style.display = 'block';
+                    document.getElementById('compareBtn').style.display = 'none';
                     
                     // Update product names
-                    document.getElementById('product1-name').textContent = analyses[0].product_name;
-                    document.getElementById('product2-name').textContent = analyses[1].product_name;
+                    document.getElementById('product1-name').textContent = data.analyses[0].product_name || 'Product 1';
+                    document.getElementById('product2-name').textContent = data.analyses[1].product_name || 'Product 2';
                     
-                    // Update health scores
-                    document.getElementById('health-score1').textContent = `${analyses[0].health_score.toFixed(1)}%`;
-                    document.getElementById('health-score2').textContent = `${analyses[1].health_score.toFixed(1)}%`;
-                    
-                    // Update ingredients
-                    document.getElementById('ingredients1').textContent = analyses[0].ingredients_text;
-                    document.getElementById('ingredients2').textContent = analyses[1].ingredients_text;
-                    
-                    // Create charts
-                    const ctx1 = document.getElementById('chart1').getContext('2d');
-                    const ctx2 = document.getElementById('chart2').getContext('2d');
-                    
+                    // Clear existing charts
                     if (chart1) chart1.destroy();
                     if (chart2) chart2.destroy();
                     
-                    chart1 = createDonutChart(ctx1, analyses[0].ingredient_percentages, analyses[0].product_name);
-                    chart2 = createDonutChart(ctx2, analyses[1].ingredient_percentages, analyses[1].product_name);
+                    // Create new charts
+                    const ctx1 = document.getElementById('chart1').getContext('2d');
+                    const ctx2 = document.getElementById('chart2').getContext('2d');
+                    
+                    chart1 = createDonutChart(ctx1, data.analyses[0].ingredient_percentages, data.analyses[0].product_name);
+                    chart2 = createDonutChart(ctx2, data.analyses[1].ingredient_percentages, data.analyses[1].product_name);
                     
                     // Create legends
-                    createLegend('legend1', analyses[0].ingredient_percentages);
-                    createLegend('legend2', analyses[1].ingredient_percentages);
+                    createLegend('legend1', data.analyses[0].ingredient_percentages);
+                    createLegend('legend2', data.analyses[1].ingredient_percentages);
                     
-                    // Show comparison section
-                    document.getElementById('comparison-section').style.display = 'block';
+                    // Update health scores
+                    document.getElementById('health-score1').textContent = data.analyses[0].health_score.toFixed(1) + '%';
+                    document.getElementById('health-score2').textContent = data.analyses[1].health_score.toFixed(1) + '%';
+                    
+                    // Update ingredients text
+                    document.getElementById('ingredients1').textContent = data.analyses[0].ingredients_text;
+                    document.getElementById('ingredients2').textContent = data.analyses[1].ingredients_text;
                 } else {
-                    alert(data.message || 'Error comparing products');
+                    alert(data.message || 'Failed to compare products');
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('Error comparing products');
+                alert('An error occurred while comparing products');
             });
         }
     </script>
