@@ -72,11 +72,32 @@
         }
 
         .health-score {
-            font-size: 24px;
+            text-align: center;
+            padding: 15px;
+            background-color: #1a365d;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .health-score .score {
+            font-size: 36px;
             font-weight: bold;
             color: white;
-            text-align: center;
-            margin: 20px 0;
+            margin: 0;
+        }
+
+        .health-score .score-label {
+            color: #a0aec0;
+            margin: 5px 0 0 0;
+            font-size: 14px;
+        }
+
+        .chart-container {
+            background-color: #1a365d;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            min-height: 300px;
         }
 
         .percentage-bar {
@@ -260,6 +281,35 @@
             gap: 1rem;
             justify-content: center;
         }
+        
+        .category-box {
+            background-color: #1a365d;
+            border: 1px solid #2d4a7f;
+            border-radius: 8px;
+            padding: 15px;
+            height: 100%;
+        }
+        
+        .category-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .ingredient-category-list {
+            list-style: none;
+            padding-left: 0;
+            margin-bottom: 0;
+            color: white;
+        }
+        
+        .ingredient-category-list li {
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .ingredient-category-list li:last-child {
+            border-bottom: none;
+        }
     </style>
 </head>
 <body>
@@ -338,11 +388,15 @@
             <div class="row">
                 <div class="col-md-6">
                     <div class="card mb-4">
-                        <div class="chart-container">
-                            <canvas id="ingredientChart"></canvas>
-                            <div class="health-score">
-                                <h3 class="score"><span id="healthScore">0</span>%</h3>
-                                <p class="score-label">Health Score</p>
+                        <div class="card-body">
+                            <h3 id="productName" class="mb-3 results-text"></h3>
+                            <div class="health-score-container mb-4 text-center">
+                                <div class="score">Health Score</div>
+                                <div id="healthScore" class="display-4 fw-bold">0%</div>
+                                <p class="score-label text-muted">Based on ingredient analysis</p>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="ingredientChart"></canvas>
                             </div>
                         </div>
                     </div>
@@ -357,7 +411,47 @@
             
             <div class="card mb-4">
                 <h4 class="mb-3">Detailed Results</h4>
-                <div id="analysisResults" class="mt-3"></div>
+                <div id="analysisResults" class="mt-3">
+                    <div class="row">
+                        <div class="col-md-12">
+                            <h5>Classified Ingredients</h5>
+                            <div id="classifiedIngredients" class="mt-3">
+                                <div class="row">
+                                    <div class="col-md-4 mb-3">
+                                        <div class="category-box">
+                                            <h6 class="category-title" style="color: #4CAF50;">Natural</h6>
+                                            <ul id="naturalIngredients" class="ingredient-category-list"></ul>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <div class="category-box">
+                                            <h6 class="category-title" style="color: #FFC107;">Additives</h6>
+                                            <ul id="additivesIngredients" class="ingredient-category-list"></ul>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <div class="category-box">
+                                            <h6 class="category-title" style="color: #FF9800;">Preservatives</h6>
+                                            <ul id="preservativesIngredients" class="ingredient-category-list"></ul>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <div class="category-box">
+                                            <h6 class="category-title" style="color: #F44336;">Artificial Colors</h6>
+                                            <ul id="artificialColorsIngredients" class="ingredient-category-list"></ul>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <div class="category-box">
+                                            <h6 class="category-title" style="color: #9C27B0;">Highly Processed</h6>
+                                            <ul id="highlyProcessedIngredients" class="ingredient-category-list"></ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
         <div id="error-message" style="display: none;"></div>
@@ -366,8 +460,8 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.js"></script>
     <script>
-        let chart = null;
-
+        let chartInstance = null;
+        
         function showTextInput() {
             document.querySelectorAll('.input-method').forEach(el => el.style.display = 'none');
             document.getElementById('textInputSection').style.display = 'block';
@@ -634,9 +728,15 @@
             productNameElement.className = 'h3 mb-3 results-text';
             
             // Update health score
+            console.log("Health Score Data:", data.health_score);
             const healthScoreElement = document.getElementById('healthScore');
-            healthScoreElement.textContent = `Health Score: ${data.health_score}%`;
-            healthScoreElement.className = 'health-score';
+            console.log("Health Score Element:", healthScoreElement);
+            if (healthScoreElement) {
+                healthScoreElement.textContent = `${data.health_score}%`;
+                healthScoreElement.className = 'display-4 fw-bold';
+            } else {
+                console.error("Health score element not found!");
+            }
             
             // Clear previous ingredient list
             const ingredientList = document.getElementById('ingredientsList');
@@ -660,7 +760,32 @@
                     </div>`;
                 ingredientList.appendChild(li);
             });
+
+            // Clear and update classified ingredients
+            const categoryIds = {
+                'Natural': 'naturalIngredients',
+                'Additives': 'additivesIngredients',
+                'Preservatives': 'preservativesIngredients',
+                'Artificial Colors': 'artificialColorsIngredients',
+                'Highly Processed': 'highlyProcessedIngredients'
+            };
             
+            // Clear all category lists
+            Object.values(categoryIds).forEach(id => {
+                document.getElementById(id).innerHTML = '';
+            });
+            
+            // Sort ingredients by category
+            data.ingredients.forEach(ingredient => {
+                const categoryId = categoryIds[ingredient.category];
+                const categoryList = document.getElementById(categoryId);
+                if (categoryList) {
+                    const li = document.createElement('li');
+                    li.textContent = ingredient.name;
+                    categoryList.appendChild(li);
+                }
+            });
+
             // Update pie chart
             updatePieChart(data.ingredient_percentages);
         }
@@ -680,8 +805,8 @@
             const ctx = document.getElementById('ingredientChart').getContext('2d');
             
             // Destroy existing chart if it exists
-            if (window.ingredientChart) {
-                window.ingredientChart.destroy();
+            if (chartInstance) {
+                chartInstance.destroy();
             }
             
             const data = {
@@ -694,11 +819,12 @@
                 }]
             };
             
-            window.ingredientChart = new Chart(ctx, {
+            chartInstance = new Chart(ctx, {
                 type: 'pie',
                 data: data,
                 options: {
                     responsive: true,
+                    maintainAspectRatio: false,
                     plugins: {
                         legend: {
                             position: 'bottom',

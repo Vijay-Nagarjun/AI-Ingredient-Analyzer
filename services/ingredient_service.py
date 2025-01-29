@@ -4,7 +4,6 @@ import requests
 from dotenv import load_dotenv
 import logging
 from functools import lru_cache
-import re
 
 logger = logging.getLogger(__name__)
 
@@ -22,10 +21,18 @@ class IngredientService:
             "Highly Processed": "#9C27B0"  # Purple
         }
         self.ollama_url = "http://localhost:11434/api/generate"
+        
+    def normalize_percentages(self, percentages):
+        """Normalize percentages to ensure they sum to 100%."""
+        total = sum(percentages.values())
+        if total == 0:
+            # If all percentages are 0, distribute evenly
+            return {k: 20 for k in self.categories}
+        return {k: round((v / total) * 100, 1) for k, v in percentages.items()}
 
     @lru_cache(maxsize=100)
     def analyze_ingredients(self, ingredients_text):
-        """Analyze ingredients using Deepseek-LLM via Ollama."""
+        """Analyze ingredients using Deepseek LLM via Ollama."""
         try:
             # Clean and validate input text
             if not ingredients_text or len(ingredients_text.strip()) < 3:
@@ -34,11 +41,7 @@ class IngredientService:
             # Prepare the prompt
             prompt = f"""You are an expert in analyzing food ingredients. Analyze these ingredients: {ingredients_text}
 
-Please analyze the ingredients and:
-1. Categorize ingredients into: Natural, Additives, Preservatives, Artificial Colors, Highly Processed
-2. Calculate percentage distribution of these categories
-3. Calculate a health score (0-100)
-4. Return the analysis in this exact JSON format:
+Return the analysis in this exact JSON format:
 {{
     "health_score": <score>,
     "ingredients": [{{"name": "<ingredient>", "category": "<category>"}}],
@@ -49,7 +52,11 @@ Please analyze the ingredients and:
         "Artificial Colors": <percentage>,
         "Highly Processed": <percentage>
     }}
-}}"""
+}}
+
+Categories should be one of: Natural, Additives, Preservatives, Artificial Colors, Highly Processed.
+Health score should be between 0-100.
+Make sure the percentages sum to 100%."""
 
             try:
                 # Call Ollama API
@@ -65,18 +72,21 @@ Please analyze the ingredients and:
                 
                 # Parse response
                 result = response.json()["response"]
-                # Extract JSON from the response (it might be wrapped in markdown code blocks)
-                json_match = re.search(r'({.*})', result, re.DOTALL)
-                if json_match:
-                    result = json_match.group(1)
-                return json.loads(result)
+                # Extract JSON from the response text
+                json_str = result[result.find("{"):result.rfind("}")+1]
+                analysis = json.loads(json_str)
+                
+                # Normalize percentages
+                analysis['ingredient_percentages'] = self.normalize_percentages(analysis['ingredient_percentages'])
+                
+                return analysis
                 
             except requests.exceptions.RequestException as e:
                 logger.error(f"Error calling Ollama API: {str(e)}")
-                raise ValueError("Failed to connect to Ollama. Make sure Ollama is running with deepseek-llm model.")
+                raise ValueError("Failed to connect to Ollama. Make sure Ollama is running and Deepseek model is installed.")
             except json.JSONDecodeError as e:
-                logger.error(f"Error parsing Ollama response: {str(e)}")
-                raise ValueError("Invalid response format from Ollama")
+                logger.error(f"Error parsing LLM response: {str(e)}")
+                raise ValueError("Failed to parse the LLM response. The model might have returned an invalid format.")
                     
         except Exception as e:
             logger.error(f"Error in analyze_ingredients: {str(e)}")

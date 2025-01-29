@@ -38,19 +38,13 @@ try:
     print("OCR service initialized successfully")
     
     print("\nInitializing Ingredient service...")
-    openai_key = os.getenv('OPENAI_API_KEY')
-    if not openai_key:
-        raise ValueError("OPENAI_API_KEY not found in environment variables")
-    
     ingredient_service = IngredientService()
     print("Ingredient service initialized successfully")
     print("Services initialization complete")
     
 except Exception as e:
     print(f"Error initializing services: {str(e)}")
-    print("Please check your .env file and make sure it contains:")
-    print("1. OPENAI_API_KEY=your_openai_api_key")
-    print("2. TESSERACT_PATH=path_to_tesseract_executable")
+    print("Please make sure Ollama is running and the deepseek-llm model is installed")
     raise
 
 # Configure logging
